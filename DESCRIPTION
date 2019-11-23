@@ -1,0 +1,23 @@
+Package: kablest
+Title: Convert estimate results into a academic kable 
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Wei",
+           family = "Luo",
+           role = c("aut", "cre"),
+           email = "liu.bian.shi@gmail.com",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: Do not know what to write for now.
+License: GPL (>= 2.0)
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 3.6.1),
+Imports:
+    tidyverse (>= 1.2.1),
+    knitr (>= 1.24),
+    broom (>= 0.5.2),
+    kableExtra (>= 1.1.0)
+Suggests:
+    lfe (>= 2.8-3)
+RoxygenNote: 7.0.0
