@@ -4,7 +4,7 @@
 #' @return An integer 
 #' @export
 nobs.felm <- function(object) {
-    objects$N
+    object$N
 }
 
 #' Print formated number depents on the number size
@@ -340,7 +340,6 @@ kablest <- function(
                                       stringr::str_sub(bracket.p, 2, 2)))
             })
     }
-
 #> combine coef, t, p and star
     #> coef and star
     if (!is.null(coef.star))
@@ -402,7 +401,6 @@ kablest <- function(
             dplyr::select(-c("ori", "index"))
         k.hline <- dim(body)[1]
     }
-
 #> handle variable label
     if (!is.null(var.label)) {
         k.variable <- purrr::flatten_chr(variable)
@@ -444,7 +442,6 @@ kablest <- function(
             tibble::as_tibble(rownames = "term") %>%
             dplyr::bind_rows(body, .)
     }
-
 #> handle statistic
     if (stat.obs || stat.r2 || stat.ar2 || (!is.null(stat.other))) {
         k.stat <- vector("character") 
@@ -496,7 +493,6 @@ kablest <- function(
         }
         body <- dplyr::bind_rows(body, l.stat)
     }    
-
 #> handle column.name 
     if (!is.null(column.name) && length(column.name) != length(reg.list))
         stop("length of header not equal reg number")
@@ -505,10 +501,9 @@ kablest <- function(
     } else {
         names(body) <- c("variable", column.name)
     }
-
 #> Adjust output format
     if (format == "text") {
-        print(as.data.frame(body))
+        print(as.data.frame(body), right = FALSE)
         invisible(body)
     } else {
     #> handle language
