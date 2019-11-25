@@ -6,13 +6,13 @@
 \usage{
 kablest(
   reg.list,
-  style = "text",
+  format = "text",
   caption = NULL,
   label = NULL,
   align = NULL,
   escape = TRUE,
   note = NULL,
-  LANG = NULL,
+  LANG = "en_US",
   column.name = NULL,
   var.drop = NULL,
   var.drop.method = "exact",
@@ -57,7 +57,7 @@ kablest(
 \item{reg.list}{a list of regression results. Regresssion model needs to
 be handled by \code{broom} package.}
 
-\item{style}{a string for output format, which can be \code{text}(default)
+\item{format}{a string for output format, which can be \code{text}(default)
 \code{markdown} or \code{latex}.}
 
 \item{caption}{the table caption.}
@@ -187,7 +187,8 @@ default.}
 adjacent column are the same.}
 
 \item{kable.args}{parameter list which will be passed to \code{knitr::kable}
-to control the display of the \code{latex} and/or \code{markdown} style
+to control the display of the \code{latex} and/or \code{markdown}
+format 
 output. When a \code{kable.args} conflicts with the of \code{kablest},
 the setting of \code{kablest} will prevail.}
 
@@ -218,6 +219,39 @@ group <- gl(2, 10, 20, labels = c("Ctl","Trt"))
 weight <- c(ctl, trt)
 lm.D9 <- lm(weight ~ group)
 lm.D90 <- lm(weight ~ group - 1) # omitting intercept
-kablest(list(lm.D9, lm.D90))
-
+clotting <- data.frame(
+   u = c(5,10,15,20,30,40,60,80,100),
+   lot1 = c(118,58,42,35,27,25,21,19,18),
+   lot2 = c(69,35,26,21,18,16,13,12,12))
+glm.1 <- glm(lot1 ~ log(u), data = clotting, family = Gamma)
+glm.2 <- glm(lot2 ~ log(u), data = clotting, family = Gamma)
+l.reg <- list(lm.D9, lm.D90, glm.1, glm.2)
+kablest(l.reg)
+kablest(l.reg, coef.star= c("+.001", "*.01"))
+kablest(l.reg, format = "latex")
+kablest(l.reg, var.keep = "group.*", var.keep.method = "regex")
+kablest(l.reg,  var.keep = c("groupTrt", "log(u)"))
+kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+        var.label = list("log(u)" = "log_u"))
+kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+        var.label = c("Trt", "log_u"))
+kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+        var.label = c("Trt", "log_u"),
+        add.lines = list(FE = rep("N", 4)))
+kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+        var.label = c("Trt", "log_u"),
+        coef.t = TRUE, bracket.t = "[]",
+        add.lines = list(FE = rep("N", 4)))
+kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+        var.label = c("Trt", "log_u"),
+        single.row = TRUE,
+        add.lines = list(FE = rep("N", 4)))
+kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+        var.label = c("Trt", "log_u"),
+        single.row = TRUE, coef.se = FALSE,
+        add.lines = list(FE = rep("N", 4)))
+kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+        var.label = c("Trt", "log_u"),
+        digits.se = 4L, digits.coef = 4L,
+        add.lines = list(FE = rep("N", 4)))
 }

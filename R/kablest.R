@@ -64,7 +64,7 @@ fPrint <- function(z, digits = getOption("digits"),
 #'
 #' @param reg.list a list of regression results. Regresssion model needs to
 #'      be handled by \code{broom} package.
-#' @param style a string for output format, which can be \code{text}(default)
+#' @param format a string for output format, which can be \code{text}(default)
 #'      \code{markdown} or \code{latex}.
 #' @param caption the table caption.
 #' @param label The table reference label. By default, the label is obtained
@@ -153,7 +153,8 @@ fPrint <- function(z, digits = getOption("digits"),
 #' @param multicolumn T/N; whether to merge header cells when the value of
 #'      adjacent column are the same. 
 #' @param kable.args parameter list which will be passed to \code{knitr::kable}
-#'      to control the display of the \code{latex} and/or \code{markdown} style
+#'      to control the display of the \code{latex} and/or \code{markdown}
+#'      format 
 #'      output. When a \code{kable.args} conflicts with the of \code{kablest},
 #'      the setting of \code{kablest} will prevail.
 #' @param kable.style.args parameter list which will be passed to
@@ -174,8 +175,41 @@ fPrint <- function(z, digits = getOption("digits"),
 #' weight <- c(ctl, trt)
 #' lm.D9 <- lm(weight ~ group)
 #' lm.D90 <- lm(weight ~ group - 1) # omitting intercept
-#' kablest(list(lm.D9, lm.D90))
-#'
+#' clotting <- data.frame(
+#'    u = c(5,10,15,20,30,40,60,80,100),
+#'    lot1 = c(118,58,42,35,27,25,21,19,18),
+#'    lot2 = c(69,35,26,21,18,16,13,12,12))
+#' glm.1 <- glm(lot1 ~ log(u), data = clotting, family = Gamma)
+#' glm.2 <- glm(lot2 ~ log(u), data = clotting, family = Gamma)
+#' l.reg <- list(lm.D9, lm.D90, glm.1, glm.2)
+#' kablest(l.reg)
+#' kablest(l.reg, coef.star= c("+.001", "*.01"))
+#' kablest(l.reg, format = "latex")
+#' kablest(l.reg, var.keep = "group.*", var.keep.method = "regex")
+#' kablest(l.reg,  var.keep = c("groupTrt", "log(u)"))
+#' kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+#'         var.label = list("log(u)" = "log_u"))
+#' kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+#'         var.label = c("Trt", "log_u"))
+#' kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+#'         var.label = c("Trt", "log_u"),
+#'         add.lines = list(FE = rep("N", 4)))
+#' kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+#'         var.label = c("Trt", "log_u"),
+#'         coef.t = TRUE, bracket.t = "[]",
+#'         add.lines = list(FE = rep("N", 4)))
+#' kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+#'         var.label = c("Trt", "log_u"),
+#'         single.row = TRUE,
+#'         add.lines = list(FE = rep("N", 4)))
+#' kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+#'         var.label = c("Trt", "log_u"),
+#'         single.row = TRUE, coef.se = FALSE,
+#'         add.lines = list(FE = rep("N", 4)))
+#' kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+#'         var.label = c("Trt", "log_u"),
+#'         digits.se = 4L, digits.coef = 4L,
+#'         add.lines = list(FE = rep("N", 4)))
 #' @export
 kablest <- function(
     reg.list, format = "text", caption = NULL, label = NULL, align = NULL,
@@ -239,9 +273,10 @@ kablest <- function(
     }
 
 #> handle star, star must comply with specific formats 
-    if (!is.null(coef.star)) {
+    if (!is.null(coef.star)) { 
+        coef.star <- c("***.00001", coef.star) 
         d.t <- stringr::str_match(coef.star, "^([^.]+)\\.([0-9]+)$")[, -1] %>%
-            tibble::as_tibble() %>%
+            as.data.frame(stringsAsFactors = FALSE) %>% .[-1,] %>%
             dplyr::rename(symbol = "V1", cut = "V2") %>%
             dplyr::mutate(cut = as.double(stringr::str_c("0.", cut))) %>%
             dplyr::arrange(cut)
@@ -425,7 +460,8 @@ kablest <- function(
                 next
             }        
             l.stat[[i]] <- reg.list %>%
-                purrr::map_dbl(~ broom::glance(.)[[k.stat[i]]])
+                purrr::map_dbl(~ if(is.null(broom::glance(.)[[k.stat[i]]])) NA
+                else broom::glance(.)[[k.stat[i]]])
         }
         l.stat <- dplyr::bind_cols(l.stat) %>% t() %>%
             tibble::as_tibble(rownames = "term")

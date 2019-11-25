@@ -8,7 +8,8 @@ fStringMatch <- function(x, sub_x, method = "exact") {
                  ": not exists!")
         match(sub_x, x)    
     } else if (method == "regex") {
-        map(sub_x, ~ str_which(x, .)) %>% flatten_int() %>% unique()
+        purrr::map(sub_x, ~ stringr::str_which(x, .)) %>%
+            purrr::flatten_int() %>% unique()
     } else {
         stop("Currently, only support `exact` and `regex` method")
     }
