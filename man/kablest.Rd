@@ -7,6 +7,8 @@
 kablest(
   reg.list,
   format = "text",
+  path = NULL,
+  append = FALSE,
   caption = NULL,
   label = NULL,
   align = NULL,
@@ -59,6 +61,12 @@ be handled by \code{broom} package.}
 
 \item{format}{a string for output format, which can be \code{text}(default)
 \code{markdown} or \code{latex}.}
+
+\item{path}{Path or connection to write to.}
+
+\item{append}{If `FALSE`, will overwrite existing file. If `TRUE`, will
+append to existing file. In both cases, if file does not exist a
+new file is created.}
 
 \item{caption}{the table caption.}
 

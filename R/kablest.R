@@ -66,6 +66,10 @@ fPrint <- function(z, digits = getOption("digits"),
 #'      be handled by \code{broom} package.
 #' @param format a string for output format, which can be \code{text}(default)
 #'      \code{markdown} or \code{latex}.
+#' @param path Path or connection to write to.     
+#' @param append If `FALSE`, will overwrite existing file. If `TRUE`, will
+#'      append to existing file. In both cases, if file does not exist a
+#'      new file is created.
 #' @param caption the table caption.
 #' @param label The table reference label. By default, the label is obtained
 #'      from ‘knitr::opts_current$get('label')’.
@@ -212,7 +216,8 @@ fPrint <- function(z, digits = getOption("digits"),
 #'         add.lines = list(FE = rep("N", 4)))
 #' @export
 kablest <- function(
-    reg.list, format = "text", caption = NULL, label = NULL, align = NULL,
+    reg.list, format = "text", path = NULL, append = FALSE,
+    caption = NULL, label = NULL, align = NULL,
     escape = TRUE, note = NULL, LANG = "en_US", column.name = NULL,
     var.drop = NULL, var.drop.method = "exact",
     var.keep = NULL, var.keep.method = "exact", 
@@ -582,7 +587,11 @@ kablest <- function(
                 footnote_as_chunk = TRUE
             )
         }
-        out.kable
+        if (!is.null(path)) {
+            write_file(out.kable, path, append)
+        } else {
+            out.kable
+        }    
     }
 }
 
