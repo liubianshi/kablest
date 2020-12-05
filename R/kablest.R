@@ -1,59 +1,3 @@
-#' Get number of felm regression observations
-#'
-#' @param object An object created by lfe::felm
-#' @return An integer 
-#' @export
-nobs.felm <- function(object) {
-    object$N
-}
-
-#' Print formated number depents on the number size
-#' 
-#' The \code{fPrint} function format number depends on its own size.
-#'
-#' @param z a number.
-#' @param digits the maximum number of digits to the right of  
-#'      the decimal point
-#' @inheritParams base::format 
-#' @return A formated character representations of \code{z} 
-#' @examples
-#' fPrint(NA)
-#' fPrint(0)
-#' fPrint(0, digits = 3)
-#' fPrint(0.12345)
-#' fPrint(0.1)
-#' fPrint(0.012345)
-#' fPrint(1.121234)
-#' fPrint(11.121234)
-#' fPrint(111.12123)
-#' fPrint(11111)
-fPrint <- function(z, digits = getOption("digits"),
-                   width = NULL, big.mark = ",") {
-        if (is.null(width)) width <- digits + 3L
-        if (is.na(z)) 
-            return("")
-        t <- abs(z)
-        if (t == 0) {
-            x <- format(z, digits = 0, nsmall = digits, width = width)
-        } else if (t < 1) {
-            x <- format(z, digits = max(0, digits - as.integer(log10(1/t))), 
-                        nsmall = digits, width = width, scientific = FALSE)
-        } else if (t < 10) {
-            x <- format(z, digits = digits, nsmall = digits,
-                        width = width, scientific = FALSE)
-        } else if (round(t) < 10^digits) {
-            width <- ifelse(round(t) < 10^3, width, width -1)
-            x <- format(z, digits = digits - as.integer(log10(round(t))),
-                        nsmall = max(0, digits - as.integer(log10(round(t)))),
-                        width = width, scientific = FALSE, big.mark = big.mark)
-        } else {
-            x <- format(z, digits = 0, width = width - length(big.mark),
-                        scientific = FALSE,
-                        big.mark = big.mark)
-        }
-        x
-}
-
 #' Convert tidy regress model results to academic table
 #'
 #' Based on tidy tibble form regress model results converted by \code{broom}
@@ -215,384 +159,116 @@ fPrint <- function(z, digits = getOption("digits"),
 #'         digits.se = 4L, digits.coef = 4L,
 #'         add.lines = list(FE = rep("N", 4)))
 #' @export
-kablest <- function(
-    reg.list, format = "text", path = NULL, append = FALSE,
-    caption = NULL, label = NULL, align = NULL,
-    escape = TRUE, note = NULL, LANG = "en_US", column.name = NULL,
-    var.drop = NULL, var.drop.method = "exact",
-    var.keep = NULL, var.keep.method = "exact", 
-    var.order = NULL, var.order.method = "exact",
-    var.label = NULL, single.row = FALSE,
-    coef.alter = NULL, coef.se = TRUE, coef.t = FALSE, coef.p = FALSE,
-    coef.star = c("***.01", "**.05", "*.1"),
-    digits.coef = 3L, digits.se = 3L, digits.p = 3L, digits.t = 2L,
-    bracket.se = "()", bracket.t = "()", bracket.p = "[]",
-    stat.obs = TRUE, stat.r2 = TRUE, stat.ar2 = FALSE, stat.other = NULL,
-    stat.label = NULL, add.lines = list(),
-    header.model = TRUE, header.model.args = list(),
-    header.dependent = FALSE, header.dependent.args = list(),
-    header.number = FALSE, header.number.args = list(),
-    header.add.args = list(), multicolumn = TRUE, 
-    kable.args = list(), kable.style.args = list(), ...
+kablest <- function(..., reglist = NULL, outfmt = "text",
+    path = NULL, append = FALSE,
+    caption = NULL, align = NULL, lang = "en_US",
+    vari = list(name = NULL, label = NULL),
+    esti = list(estimate = 3L, std.error = "(3)", statistic = NULL,
+                p.value = NULL, singlerow = FALSE),
+    star = list(cut = c(0.1, 0.05, 0.01), symbol = c("*", "**", "***")),
+    stat = list(name = c("N", "r2"), label = c("N", "$R^2$"), NULL),
+    header = list(indep = TRUE, regname = TRUE, regno = TRUE, NULL),
+    note = TRUE,
+    header.args = list(top = TRUE, multicolumn = TRUE),
+    flextable.args = list(parse_markdown = TRUE),
+    kable.args = list(), kable.style.args = list()
 ) {
-#> handle variable
-    variable <- purrr::map(reg.list, ~ broom::tidy(.)[["term"]]) %>%
-                purrr::flatten_chr() %>% unique()
-    if (!is.null(var.drop)) {          # 处理变量删除 
-        k.t <- fStringMatch(variable, var.drop, var.drop.method)
-        if (length(k.t) != 0) 
-            variable <- variable[-k.t]
-    }
-    if (!is.null(var.keep)) {          # 处理变量保留 
-        k.t <- fStringMatch(variable, var.keep, var.keep.method)
-        if (length(k.t) != 0) 
-            variable <- variable[k.t]
-    }
-    if (!is.null(var.order)) {          # 处理变量保留 
-        k.t <- fStringMatch(variable, var.order, var.order.method)
-        if (length(k.t) != 0) 
-            variable <- c(variable[k.t], variable[-k.t])
-    }
-    variable <- tibble::tibble(term = variable)
-    
-#> handle coef 
-    k.coef <-  if (is.null(coef.alter)) "estimate" else coef.alter
-    if (coef.se) k.coef <- c(k.coef, "std.error")
-    if (coef.t) k.coef <- c(k.coef, "statistic")
-    if (coef.p || !is.null(coef.star)) k.coef <- c(k.coef, "p.value")
-    if (!is.null(coef.star)) k.coef <- c(k.coef, "star")
-    l.coef <- vector("list", length(k.coef))
-    names(l.coef) <- k.coef
-    for (i in seq_along(k.coef)) {
-        if (k.coef[i] == "star")
-            next 
-        l.coef[[i]] <- reg.list %>%
-            purrr::map_dfc(~
-                broom::tidy(.) %>%
-                dplyr::select(c("term", k.coef[i])) %>%
-                dplyr::right_join(variable, by = "term") %>%
-                dplyr::select(c(k.coef[i]))
-            ) %>%
-            dplyr::bind_cols(variable, .)
-        names(l.coef[[i]])[-1] <- c(stringr::str_c("V", seq_along(reg.list)))
-    }
+    digits <- ifthen(as.integer(esti$estimate), 3L)
+    # reglist and header
+    reglist <- c(list(...), if(!is.null(reglist)) reglist)
+    stopifnot(length(reglist) > 0)
+    names(reglist) %<>% ifthen(paste0("R", seq_along(reglist)))
+    header <- do.call("genheader", c(reglist = reglist, header))
 
-#> handle star, star must comply with specific formats 
-    if (!is.null(coef.star)) { 
-        coef.star <- c("***.00001", coef.star) 
-        d.t <- stringr::str_match(coef.star, "^([^.]+)\\.([0-9]+)$")[, -1] %>%
-            as.data.frame(stringsAsFactors = FALSE) %>% .[-1,] %>%
-            dplyr::rename(symbol = "V1", cut = "V2") %>%
-            dplyr::mutate(cut = as.double(stringr::str_c("0.", cut))) %>%
-            dplyr::arrange(cut)
-        d.s <- d.t[[1]]
-        d.c <- d.t[[2]]
-        l.coef[["star"]] <- l.coef[["p.value"]][, -1] %>%
-            purrr::map_dfc(~ {
-                k.t <- ifelse(is.na(.), 1L, .)
-                temp <- rep("", length(k.t))
-                for (i in seq_along(d.c)) {
-                    temp <- ifelse(temp == "" & k.t <= d.c[i], d.s[i], temp)
-                }
-                temp                    
-            }) %>% dplyr::bind_cols(variable, .)
+    # varlist and varlabels
+    vars <- purrr::map(reglist, ~ broom::tidy(.)[["term"]]) %>%
+        purrr::flatten_chr() %>%
+        unique()
+    vars <- if (!is.null(vari$name)) {
+        stopifnot(all(vari$name %in% vars))
+        vari$name
     }
-
-#> Convert numeric data to string 
-    #> coef
-    if (is.null(coef.alter)) {
-        l.coef[["estimate"]][, -1] <- l.coef[["estimate"]][, -1] %>%
-            purrr::map_dfc(~ purrr::map_chr(., fPrint, 
-                                            digits = digits.coef) %>%
-            stringr::str_trim())
-    } else {
-        l.coef[[coef.alter]][, -1] <- l.coef[[coef.alter]][, -1] %>%
-            purrr::map_dfc(~ purrr::map_chr(., fPrint, 
-                                            digits = digits.coef) %>%
-            stringr::str_trim())
-    }
-    #> se
-    if (coef.se) {
-        l.coef[["std.error"]][, -1] <- l.coef[["std.error"]][, -1] %>%
-            purrr::map_dfc(~ {
-                temp <- purrr::map_chr(., fPrint, digits = digits.se)
-                temp <- stringr::str_trim(temp) 
-                ifelse(temp == "", "",
-                        stringr::str_c(stringr::str_sub(bracket.se, 1, 1),
-                                        temp,
-                                        stringr::str_sub(bracket.se, 2, 2)))
-            }) 
-    }
-    #> t-statistic
-    if (coef.t) {
-        l.coef[["statistic"]][, -1] <- l.coef[["statistic"]][, -1] %>%
-            purrr::map_dfc(~ {
-                temp <- purrr::map_chr(., fPrint, digits = digits.t)
-                temp <- stringr::str_trim(temp) 
-                ifelse(temp == "", "",
-                       stringr::str_c(stringr::str_sub(bracket.t, 1, 1), temp,
-                                      stringr::str_sub(bracket.t, 2, 2)))
-            })
-    }
-    #> p-value
-    if (coef.p) {
-        l.coef[["p.value"]][, -1] <- l.coef[["p.value"]][, -1] %>%
-            purrr::map_dfc(~ {
-                temp <- purrr::map_chr(., fPrint, digits = digits.p)
-                temp <- stringr::str_trim(temp) 
-                ifelse(temp == "", "",
-                       stringr::str_c(stringr::str_sub(bracket.p, 1, 1), temp,
-                                      stringr::str_sub(bracket.p, 2, 2)))
-            })
-    }
-#> combine coef, t, p and star
-    #> coef and star
-    if (!is.null(coef.star))
-        if (format == "text") {
-            body <- if(is.null(coef.alter)) {
-                purrr::map2_dfc(l.coef[["estimate"]][, -1],
-                                l.coef[["star"]][, -1], stringr::str_c) %>%
-                dplyr::bind_cols(variable, .)
-            } else {
-                purrr::map2_dfc(l.coef[[coef.alter]][, -1],
-                                l.coef[["star"]][, -1], stringr::str_c) %>%
-                dplyr::bind_cols(variable, .)
-            }
-        } else if (format %in% c("latex", "html", "markdown")) {
-            body <- l.coef[["star"]][, -1] %>%
-                purrr::map_dfc(function(x) {
-                    ifelse(x == "", "", stringr::str_c("$^{", x, "}$"))
-                }) %>%
-                purrr::map2_dfc(l.coef[[
-                        if (is.null(coef.alter)) "estimate" else coef.alter
-                    ]][, -1], ., stringr::str_c) %>% 
-                dplyr::bind_cols(variable, .)
-        }
-    if (single.row == TRUE) {
-        if (coef.se)
-            body <- body[, -1] %>%
-                purrr::map2_dfc(l.coef[["std.error"]][, -1],
-                                stringr::str_c, sep = " ") %>%
-                dplyr::bind_cols(variable, .)
-        if (coef.t)
-            body <- body[, -1] %>%
-                purrr::map2_dfc(l.coef[["statistic"]][, -1],
-                                stringr::str_c, sep = " ") %>%
-                dplyr::bind_cols(variable, .)
-        if (coef.p)
-            body <- body[, -1] %>%
-                purrr::map2_dfc(l.coef[["p.value"]][, -1],
-                                stringr::str_c, sep = " ") %>%
-                dplyr::bind_cols(variable, .)
-    } else {
-        body <- dplyr::mutate(body, ori = dplyr::row_number(), index = 1)
-        if (coef.se) 
-            body <- l.coef[["std.error"]] %>%
-                dplyr::mutate(ori = dplyr::row_number(), index = 2) %>%
-                dplyr::bind_rows(body, .) %>%
-                dplyr::arrange(ori, index)
-        if (coef.t)
-            body <- l.coef[["statistic"]] %>%
-                dplyr::mutate(ori = dplyr::row_number(), index = 3) %>%
-                dplyr::bind_rows(body, .) %>%
-                dplyr::arrange(ori, index)
-        if (coef.p)
-            body <- l.coef[["p.value"]] %>%
-                dplyr::mutate(ori = row_number(), index = 4) %>%
-                dplyr::bind_rows(body, .) %>%
-                dplyr::arrange(ori, index)
-        body <- body %>%
-            dplyr::mutate(term = ifelse(index == 1, term, "")) %>%
-            dplyr::select(-c("ori", "index"))
-        k.hline <- dim(body)[1]
-    }
-#> handle variable label
-    if (!is.null(var.label)) {
-        k.variable <- purrr::flatten_chr(variable)
-        l.variable <- vector("list", length(k.variable))
-        names(l.variable) <- k.variable
-        if (is.character(var.label)) {
-            if (length(var.label) != length(k.variable))
-                stop(stringr::str_c("var.label: using list instead",
-                                    "or make vector length equal ",
-                                    "reserved variables"))
-            for (i in seq_along(k.variable)) {
-                l.variable[[i]] <- var.label[i]
-            }
-        } else if (is.list(var.label)) {
-            for (i in seq_along(k.variable)) {
-                l.variable[[i]] <- ifelse(is.null(var.label[[k.variable[i]]]),
-                                          k.variable[i],
-                                          var.label[[k.variable[i]]])
-            }
-        }
-        body <- body %>%
-            dplyr::mutate(term = purrr::map_chr(
-                term, ~ ifelse(. ==  "", "", l.variable[[.]])))
-    }
-
-#> handle add lines
-    if (length(add.lines) != 0) {
-        k.temp <- names(add.lines)
-        add.lines <- add.lines %>%
-            purrr::map(~
-                if (is.numeric(.)) { 
-                    purrr::map_chr(., fPrint, digits = coef.digits) %>%
-                    stringr::str_trim()
-                } else {
-                    .
-                })
-        body <- dplyr::bind_cols(add.lines) %>%
-            t() %>%
-            tibble::as_tibble(rownames = "term") %>%
-            dplyr::bind_rows(body, .)
-    }
-#> handle statistic
-    if (stat.obs || stat.r2 || stat.ar2 || (!is.null(stat.other))) {
-        k.stat <- vector("character") 
-        if (stat.obs) k.stat <- c("obs.number")
-        if (stat.r2)  k.stat <- c(k.stat, "r.squared")
-        if (stat.ar2) k.stat <- c(k.stat, "adj.r.squared")
-        if (!is.null(stat.other)) k.stat <- c(k.stat, stat.other)
-        l.stat <- vector("list", length(k.stat))
-        names(l.stat) <- k.stat
-        for (i in seq_along(k.stat)) {
-            if (k.stat[[i]] == "obs.number") {
-                l.stat[[i]] <- reg.list %>% purrr::map_int(nobs)
-                next
-            }        
-            l.stat[[i]] <- reg.list %>%
-                purrr::map_dbl(~ if(is.null(broom::glance(.)[[k.stat[i]]])) NA
-                else broom::glance(.)[[k.stat[i]]])
-        }
-        l.stat <- dplyr::bind_cols(l.stat) %>% t() %>%
-            tibble::as_tibble(rownames = "term")
-        l.stat[, -1] <- l.stat[, -1] %>%
-            purrr::map_dfc(~
-                purrr::map_chr(., fPrint, digits = digits.coef) %>%
-                stringr::str_trim()
-            )
-        if (!is.null(stat.label)) {
-            l.stat.label <- vector("list", length(k.stat))
-            names(l.stat.label) <- k.stat 
-            if (is.character(stat.label)) {
-                if (length(stat.label) != length(k.stat))
-                    stop(stringr::str_c("stat.label: using list instead",
-                                        "or make vector length equal ",
-                                        "reserved variables"))
-                for (i in seq_along(k.stat)) {
-                    l.stat.label[[i]] <- stat.label[i]
-                }
-            } else if (is.list(stat.label)) {
-                for (i in seq_along(k.stat)) {
-                    l.stat.label[[i]] <- ifelse(
-                        is.null(stat.label[[k.stat[i]]]),
-                        k.stat[i], stat.label[[k.stat[i]]])
-                }
-            }
-            l.stat <- l.stat %>% dplyr::mutate(
-                term = purrr::map_chr(
-                    term, ~ ifelse(. ==  "", "", l.stat.label[[.]])
-                )
-            )
-        }
-        body <- dplyr::bind_rows(body, l.stat)
-    }    
-#> handle column.name 
-    if (!is.null(column.name) && length(column.name) != length(reg.list))
-        stop("length of header not equal reg number")
-    if (is.null(column.name)) {
-        names(body) <- c("variable", stringr::str_c("(", seq_along(reg.list), ")"))
-    } else {
-        names(body) <- c("variable", column.name)
-    }
-#> Adjust output format
-    if (format == "text") {
-        print(as.data.frame(body), right = FALSE)
-        invisible(body)
-    } else {
-    #> handle language
-        k.note.title <- "Note: "
-        if (LANG == "zh_CN") {
-            body$variable <- body$variable %>%
-                stringr::str_replace("^obs\\.number$", "观测数") %>%
-                stringr::str_replace("^r\\.squared$", "$R^2$") %>%
-                stringr::str_replace("^adj\\.r\\.squared$", "调整 $R^2$")
-            names(body)[1] <- "变量"
-            k.note.title <- "注释: "
-        }
-        kable.args[["x"]]       <- body
-        kable.args[["format"]]  <- format 
-        kable.args[["caption"]] <- caption
-        kable.args[["escape"]]  <- escape
-        kable.args[["align"]]   <- align
-        kable.args[["label"]]   <- label
-        if (is.null(kable.args[["booktabs"]]))
-            kable.args[["booktabs"]] <- TRUE
-        if (is.null(kable.args[["linesep"]]))
-            kable.args[["linesep"]] <- "" 
-        out.kable <- do.call(knitr::kable, kable.args)
-        kable.style.args[["kable_input"]] <- out.kable
-        if (is.null(kable.style.args[["position"]]))
-            kable.style.args[["position"]] = "center"
-        out.kable <- do.call(kableExtra::kable_styling, kable.style.args) %>%
-            kableExtra::row_spec(k.hline, hline_after = TRUE)
-        #> handle header
-        k.temp <- c(header.model, header.dependent, header.number)
-        if (sum(k.temp) != 0) {
-            l.header <- vector("list", sum(k.temp))
-            names(l.header) <- c("model", "dependent", "number")[k.temp]
-            l.header.args <- vector("list", sum(k.temp))
-            names(l.header.args) <- c("model", "dependent", "number")[k.temp]
-            if (header.number) {
-                l.header[["number"]] <- stringr::str_c(
-                    "(", seq_along(reg.list), ")")
-                l.header.args[["number"]] <- header.number.args
-                if (is.null(header.number.args))
-                    l.header.args[["number"]] <- header.add.args
-            }
-            if (header.dependent) {
-                l.header[["dependent"]] <- purrr::map_chr(reg.list, fGetDep)
-                l.header.args[["dependent"]] <- header.dependent.args
-                if (is.null(header.dependent.args))
-                    l.header.args[["dependent"]] <- header.add.args
-            }
-            if (header.model) {
-                l.header[["model"]] <- purrr::map_chr(reg.list, ~ class(.)[1])
-                l.header.args[["model"]] <- header.model.args
-                if (is.null(header.model.args))
-                    l.header.args[["model"]] <- header.add.args
-            }
-            if (multicolumn) {
-                l.header <- l.header %>% purrr::map(~ c("", fZipChar(.)))
-            } else {
-                l.header <- l.header %>% purrr::map(~ c("", .))
-            }
-            for (i in seq(l.header)) {
-                l.header.args[[i]][["kable_input"]] <- out.kable
-                l.header.args[[i]][["header"]] <- l.header[[i]] 
-                out.kable <- do.call(kableExtra::add_header_above,
-                                     l.header.args[[i]])
-            }
-        }
-
-        #> handle notes
-        if (is.null(note) || !is.na(note)) {
-            if (is.null(note))
-                note <- stringr::str_c(d.s, " p < ", d.c, collapse = "; ")
-            out.kable <- kableExtra::footnote(
-                out.kable, general = note,
-                escape = escape, threeparttable = TRUE,
-                general_title = k.note.title, title_format = "bold",
-                footnote_as_chunk = TRUE
-            )
-        }
-        if (!is.null(path)) {
-            write_file(out.kable, path, append)
+    varlabels <- if (!is.null(vari$label)) {
+        if (is.character(vari$label)) {
+            stopifnot(length_equal(vars, vari$label))
+            vari$label
+        } else if (is.list(vari$label)) {
+            purrr::map_chr(vars, ~ ifthen(vari$label[[.x]], .x))
         } else {
-            out.kable
-        }    
+            stop("vari$label only accep character vector of list")
+        }
+    } else {
+        vars
     }
-}
 
+    # body: estimate
+    l.esti <- local({
+        name.esit <- names(esti)[!purrr::map_lgl(esti, is.null)]
+        name.esti <- names.esti[names.esti != "singlerow"]
+        purrr::map(name.esti, ~ getesti(.x, reglist, vars, esti[[.x]]))
+    })
+
+    # body: star
+    if (!is.null(star)) {
+        l.esti[[1]] <- local({
+            stardf <- getesti("p.value", reglist, vars) %>%
+                purrr::map_dfc(genstar, star = adjstar(star, outfmt)) %>%
+            estidf <- copy(l.esti[[1]])
+            for (i in seq_along(stardf)) {
+                if (i == 1L) next
+                estidf[[i]] <- paste0(estidf[[i]], stardf[[i]])
+            }
+            estidf
+        })
+    }
+
+    # body: combined
+    body <- if (isTRUE(esti$singlerow)) {
+        purrr::reduce(l.esti, dfplus_element, ignore_col = "term")
+    } else {
+        dfplus_row(list = l.esti, common_col = "term")
+    }
+    body$term <- varlabels[match(body$term, vars)] %>% rempty("")
+
+    # stats 
+    stat <- local({
+        stopifnot(is.null(stat$label) || length_equal(stat$name, stat$label))
+        statlabels <- ifthen(stat$label, translate(stat$name, lang))
+        o_stat <- stat$name %>%
+            lapply(getstat, reglist = reglist, fmt = esti[[1]]) %>%
+            data.table::rbindlist() %>%
+            .[term := ..statlabels]
+        stat.add <- stat[-match(c("name", "label", ""), names(stat))]
+        if (length(stat.add) != 0) {
+            o_stat <- stat.add %>%
+                purrr::map(~ ifthen(.x,
+                    fun = is.numeric,
+                    then = lbs::stformat(.x, digits = digits, na.replace = ""),
+                    otherwise = as.character(.x))) %>%
+                rbindlist() %>%
+                .[, term := names(..stat.add)] %>%
+                rbind(o_stat)
+        }
+        o_stat
+    })
+
+    # output
+    out <- local({
+        outargs <- list(body = body,
+                        stat = stat,
+                        header = header,
+                        caption = caption,
+                        note = gennotelist(note, star, digits),
+                        align = align,
+                        lang = lang,
+                        header.args = header.args,
+                        kable.args = kable.args,
+                        kable.style.args = kable.args)
+        docall(paste_("out", outfmt), outargs)
+    })
+
+    # export
+    if (!is.null(path)) write(out, path, append = append)
+    invisible(out)
+}
 

@@ -14,10 +14,14 @@ LazyData: true
 Depends:
     R (>= 3.6.1),
 Imports:
-    tidyverse (>= 1.2.1),
-    knitr (>= 1.24),
+    data.table,
+    magrittr,
+    purrr,
     broom (>= 0.5.2),
-    kableExtra (>= 1.1.0)
 Suggests:
-    lfe (>= 2.8-3)
-RoxygenNote: 7.0.0
+    knitr (>= 1.24),
+    kableExtra (>= 1.1.0),
+    flextable,
+    ftExtra,
+    testthat
+RoxygenNote: 7.1.1

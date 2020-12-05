@@ -5,63 +5,28 @@
 \title{Convert tidy regress model results to academic table}
 \usage{
 kablest(
-  reg.list,
-  format = "text",
+  ...,
+  reglist = NULL,
+  outfmt = "text",
   path = NULL,
   append = FALSE,
   caption = NULL,
-  label = NULL,
   align = NULL,
-  escape = TRUE,
-  note = NULL,
-  LANG = "en_US",
-  column.name = NULL,
-  var.drop = NULL,
-  var.drop.method = "exact",
-  var.keep = NULL,
-  var.keep.method = "exact",
-  var.order = NULL,
-  var.order.method = "exact",
-  var.label = NULL,
-  single.row = FALSE,
-  coef.alter = NULL,
-  coef.se = TRUE,
-  coef.t = FALSE,
-  coef.p = FALSE,
-  coef.star = c("***.01", "**.05", "*.1"),
-  digits.coef = 3L,
-  digits.se = 3L,
-  digits.p = 3L,
-  digits.t = 2L,
-  bracket.se = "()",
-  bracket.t = "()",
-  bracket.p = "[]",
-  stat.obs = TRUE,
-  stat.r2 = TRUE,
-  stat.ar2 = FALSE,
-  stat.other = NULL,
-  stat.label = NULL,
-  add.lines = list(),
-  header.model = TRUE,
-  header.model.args = list(),
-  header.dependent = FALSE,
-  header.dependent.args = list(),
-  header.number = FALSE,
-  header.number.args = list(),
-  header.add.args = list(),
-  multicolumn = TRUE,
+  lang = "en_US",
+  vari = list(name = NULL, label = NULL),
+  esti = list(estimate = 3L, std.error = "(3)", statistic = NULL, p.value = NULL,
+    singlerow = FALSE),
+  star = list(cut = c(0.1, 0.05, 0.01), symbol = c("*", "**", "***")),
+  stat = list(name = c("N", "r2"), label = c("N", "$R^2$"), NULL),
+  header = list(indep = TRUE, regname = TRUE, regno = TRUE, NULL),
+  note = TRUE,
+  header.args = list(top = TRUE, multicolumn = TRUE),
+  flextable.args = list(parse_markdown = TRUE),
   kable.args = list(),
-  kable.style.args = list(),
-  ...
+  kable.style.args = list()
 )
 }
 \arguments{
-\item{reg.list}{a list of regression results. Regresssion model needs to
-be handled by \code{broom} package.}
-
-\item{format}{a string for output format, which can be \code{text}(default)
-\code{markdown} or \code{latex}.}
-
 \item{path}{Path or connection to write to.}
 
 \item{append}{If `FALSE`, will overwrite existing file. If `TRUE`, will
@@ -70,19 +35,37 @@ new file is created.}
 
 \item{caption}{the table caption.}
 
-\item{label}{The table reference label. By default, the label is obtained
-from ‘knitr::opts_current$get('label')’.}
-
 \item{align}{Column alignment: a character vector consisting of \code{l} 
 (left), \code{c} (center) and/or \code{r} (right). By default or
 if \code{align = NULL}, numeric columns are right-aligned, and
 other columns are left-aligned.}
 
-\item{escape}{Boolean; whether to escape special characters when producing
-HTML or LaTeX tables.}
-
 \item{note}{the table note, by default or if \code{note = NULL}, note is
 the meaning of significant symbol.}
+
+\item{kable.args}{parameter list which will be passed to \code{knitr::kable}
+to control the display of the \code{latex} and/or \code{markdown}
+format 
+output. When a \code{kable.args} conflicts with the of \code{kablest},
+the setting of \code{kablest} will prevail.}
+
+\item{kable.style.args}{parameter list which will be passed to
+\code{kableExtra::kable_styling}
+to control the display of the \code{latex} and/or \code{markdown} style
+output. When a \code{kable.style.args} conflicts with the of
+\code{kablest}, the setting of \code{kablest} will prevail.}
+
+\item{reg.list}{a list of regression results. Regresssion model needs to
+be handled by \code{broom} package.}
+
+\item{format}{a string for output format, which can be \code{text}(default)
+\code{markdown} or \code{latex}.}
+
+\item{label}{The table reference label. By default, the label is obtained
+from ‘knitr::opts_current$get('label')’.}
+
+\item{escape}{Boolean; whether to escape special characters when producing
+HTML or LaTeX tables.}
 
 \item{LANG}{the language used to automatically generate default names}
 
@@ -193,18 +176,6 @@ default.}
 
 \item{multicolumn}{T/N; whether to merge header cells when the value of
 adjacent column are the same.}
-
-\item{kable.args}{parameter list which will be passed to \code{knitr::kable}
-to control the display of the \code{latex} and/or \code{markdown}
-format 
-output. When a \code{kable.args} conflicts with the of \code{kablest},
-the setting of \code{kablest} will prevail.}
-
-\item{kable.style.args}{parameter list which will be passed to
-\code{kableExtra::kable_styling}
-to control the display of the \code{latex} and/or \code{markdown} style
-output. When a \code{kable.style.args} conflicts with the of
-\code{kablest}, the setting of \code{kablest} will prevail.}
 }
 \value{
 A kable. If \code{style = "text"}, the \code{kablest} will print
