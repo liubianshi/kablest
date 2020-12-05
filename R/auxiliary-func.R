@@ -1,17 +1,28 @@
-genstar <- function(pvalue,
-                    starcut = c(0.1, 0.05, 0.01),
-                    starsymbol = c("*", "**", "***"),
-                    outfmt = "text") {
+# adjstar: adjust star vetor --------------------------------------------------
+adjstar <- function(star, outfmt = "text") {
+    starcut <- star$cut
+    starsymbol <- star$symbol
+
     stopifnot(is.numeric(starcut))
     stopifnot(max(starcut) < 1 && min(starcut) > 0)
     starcut <- unique(sort(starcut, decreasing = TRUE))
 
     stopifnot(is.character(starsymbol))
+    stopifnot(all(!grepl("[0-9A-Za-z]", starsymbol)))
     stopifnot(length(starsymbol) >= length(starcut))
+    starsymbol <- starsymbol[seq_along(starcut)] 
+
     if (outfmt != "text") {
         starsymbol <- escape(starsymbol, chars = "*^_`~")
         starsymbol <- paste0("^", starsymbol, "^")
     }
+    list(cut = starcut, symbol = starsymbol)
+}
+
+# genstar: gen star vector from p-value vector --------------------------------
+genstar <- function(pvalue, star) {
+    starcut <- star$cut
+    starsymbol <- star$symbol
 
     if (!is.numeric(pvalue)) return(pvalue)
     stopifnot(max(pvalue, na.rm = TRUE) < 1)
@@ -24,40 +35,77 @@ genstar <- function(pvalue,
     star
 }
 
-getesti <- function(coefname, reglist, vars, fmt = NULL)  {
-    dt_coef <- lapply(reglist,
-        function(l) {
-            broom::tidy(l) %>%
-                setDT() %>%
-                .[vars, ..coefname, on = "term"]
-        })
-    dt_coef <- do.call("cbind", dt_coef)
-    setDT(dt_coef)[, term := ..vars]
-    setcolorder(dt_coef, "term")
-    setnames(dt_coef, c("term", paste0("V", seq_along(reglist))))
+# genheader: gen header list from reglist -------------------------------------
+genheader <- function(reglist, header) {
+    if (is.null(header)) return(NULL)
 
-    if (is.null(fmt)) {
-        dt_coef
-    } else {
-        fmt = parse_c(fmt)
-        stopifnot(length(fmt) == 3)
-        coef2str(dt_coef, fmt)
+    nulltrue <- function(x, true) {
+        if (is.null(x) || isFALSE(x)) return(NULL)
+        if (isTRUE(x)) return(true)
+        x
     }
+    header$indep %<>% nulltrue(purrr::map_chr(reglist, getindep))
+    header$regname %<>% nulltrue(names(reglist))
+    header$regno %<>% nulltrue(paste0("(", seq_along(reglist), ")"))
+
+    h <- header[!purrr::map_lgl(header, is.null)]
+    format_header <- function(x, l = length(reglist)) {
+        if (!is.null(names) && all(grepl("^\\d+$", x))) 
+            x <- rep(names(x), x)
+        rep_len(x, l)
+    }
+    h <- lapply(h, format_header)
+    h
 }
 
-getstat <- function(statname, reglist, fmt = NULL) {
-    switch(statname, 
-        obs,
-        N = 
 
-    )
-    nobs()
+# getindep: get independent variable name form reg
+getindep <- function(reg) {
+    indep <- names(reg$model)[1]
+    indep
 }
 
-switch(
-    "x"
-)
 
+# getesti: get estimate result from reglist ------------------------------------
+#
+getesti <- function(coefname, reglist, vars, fmt = NULL)  {
+    dt_coef <- purrr::map(reglist, ~ broom::tidy(.x) %>%
+            data.table::setDT() %>%
+            .[vars, ..coefname, on = "term"]) %>%
+            do.call("cbind", .) %>%
+            .[, term := ..vars] %>%
+            data.table::setcolorder("term") %>%
+            data.table::setnames(c("term", names(reglist)))
+
+    if (is.null(fmt)) return(df_coef)
+    coef2str(dt_coef, parse_c(fmt))
+}
+
+
+
+# length_equal: whether two object's length is equal --------------------------
+length_equal <- function(x, y) {
+    if (length(x) == length(y)) return(TRUE)
+    else return(FALSE)
+}
+
+# ifthen: scalar version of ifelse --------------------------------------------
+ifthen <- function(x, then, otherwise = x, fun = is.null) {
+    result <- do.call(fun, list(x))
+    stopifnot(isTRUE(result) || isFALSE(result))
+    if (result) then else otherwise
+}
+
+# rempty: replace empty with specific value -----------------------------------
+rempty <- function(x, r, empty = NULL) {
+    stopifnot(length(r) == 1L || length(r) == length(x))
+    stopifnot(typeof(x) == typeof(r))
+    x <- ifelse(is.na(x) | x %in% empty, r, x)
+    x
+}
+
+
+# coef2str: transform estimate to string
 coef2str <- function(data, fmt) {
     # for example: c("(", "2", ")")
     stopifnot(length(fmt) == 3)
@@ -65,21 +113,15 @@ coef2str <- function(data, fmt) {
     r_par = fmt[3]
     digits = as.integer(fmt[2])
 
-    coef_dt <- copy(data) %>% setDT()
-    regnames <- names(coef_dt)[purrr::map_lgl(coef_dt, is.numeric)]
+    regnames <- names(data)[purrr::map_lgl(data, is.numeric)]
     fm <- function(x, digits = NULL, l_par, r_par) {
         y <- lbs::stformat(x, digits = digits, na.replace = "") %>%
             trimws()
-        paste0(l_par, y, r_par)
+        ifelse(y == "", "", paste0(l_par, y, r_par))
     }
-
-    coef_dt[,
-        (regnames) := lapply(.SD, fm,
-                             digits = ..digits,
-                             l_par = l_par,
-                             r_par = y_par),
-        .SDcols = c(regnames) 
-    ]
+    for (i in seq_along(regnames))
+        data[[regnames[i]]] %<>% fm(digits, l_par, r_par)
+    data
 }
 
 
@@ -148,4 +190,5 @@ dfplus_row <- function(..., list = NULL, common_col = NULL) {
     }
     combined[, -c("_ori", "_index")]
 }
+
 

@@ -181,7 +181,7 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
     header <- do.call("genheader", c(reglist = reglist, header))
 
     # varlist and varlabels
-    vars <- purrr::map(reglist, ~ broom::tidy(.)[["term"]]) %>%
+    vars <- purrr::map(reglist, ~ names(.x$coefficients)) %>%
         purrr::flatten_chr() %>%
         unique()
     vars <- if (!is.null(vari$name)) {
@@ -271,4 +271,5 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
     if (!is.null(path)) write(out, path, append = append)
     invisible(out)
 }
+
 

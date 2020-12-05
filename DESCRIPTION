@@ -13,9 +13,9 @@ Encoding: UTF-8
 LazyData: true
 Depends:
     R (>= 3.6.1),
+    magrittr
 Imports:
     data.table,
-    magrittr,
     purrr,
     broom (>= 0.5.2),
 Suggests:
