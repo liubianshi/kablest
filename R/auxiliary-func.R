@@ -31,6 +31,7 @@ genstar <- function(pvalue, star) {
     star <- ifelse(is.na(pvalue), NA, "") 
     for (i in seq_along(starcut)) {
         star <- ifelse(pvalue <= starcut[i], starsymbol[i], star)
+        star %<>% rempty("")
     }
     star
 }
@@ -69,6 +70,11 @@ getindep <- function(reg) {
 # getesti: get estimate result from reglist ------------------------------------
 #
 getesti <- function(coefname, reglist, vars, fmt = NULL)  {
+    stopifnot(length(coefname) == 1L)
+    nameslist <- purrr::map(reglist, ~ names(broom::tidy(.x)))
+    if (coefname == "term") return(NULL)
+    if (!all(purrr::map_lgl(nameslist, ~ coefname %in% .x))) return(NULL)
+
     dt_coef <- purrr::map(reglist, ~ broom::tidy(.x) %>%
             data.table::setDT() %>%
             .[vars, ..coefname, on = "term"]) %>%
@@ -77,7 +83,7 @@ getesti <- function(coefname, reglist, vars, fmt = NULL)  {
             data.table::setcolorder("term") %>%
             data.table::setnames(c("term", names(reglist)))
 
-    if (is.null(fmt)) return(df_coef)
+    if (is.null(fmt)) return(dt_coef)
     coef2str(dt_coef, parse_c(fmt))
 }
 
@@ -105,7 +111,7 @@ rempty <- function(x, r, empty = NULL) {
 }
 
 
-# coef2str: transform estimate to string
+# coef2str: transform estimate to string --------------------------------------
 coef2str <- function(data, fmt) {
     # for example: c("(", "2", ")")
     stopifnot(length(fmt) == 3)
@@ -124,7 +130,7 @@ coef2str <- function(data, fmt) {
     data
 }
 
-
+# parse_c: parse numeric format -----------------------------------------------
 parse_c <- function(char) {
     if (is.null(char) || is.na(char) || length(char) == 0L)
         return(NULL)
@@ -141,6 +147,7 @@ parse_c <- function(char) {
     fmt
 }
 
+# escape: escape specific chars -----------------------------------------------
 escape <- function(x, chars = "*\\") {
     stopifnot(length(chars) == 1)
 
@@ -155,16 +162,17 @@ escape <- function(x, chars = "*\\") {
     x
 }
 
-dfplus_col <- function(df_x, df_y, ignore_col = NULL, sep = " ") {
+# dfplus_element: add two data.frame by element -------------------------------
+dfplus_element <- function(df_x, df_y, ignore_col = NULL, sep = " ") {
     stopifnot(all.equal(dim(df_x), dim(df_y)))
     for (i in seq_along(df_x)) {
-        if (i %in% ignore_col) next
+        if (names(df_x)[i] %in% ignore_col) next
         df_x[[i]] <- paste(df_x[[i]], df_y[[i]], sep = sep)
     }
     df_x
 }
 
-#> 逐行合并数据框
+# dfplus_row: append multi data.frame by position -----------------------------
 dfplus_row <- function(..., list = NULL, common_col = NULL) {
     l <- c(list(...), list)
     stopifnot(length(l) >= 2L)
@@ -181,7 +189,7 @@ dfplus_row <- function(..., list = NULL, common_col = NULL) {
     }
 
     combined <- data.table::rbindlist(l, use.names = FALSE)
-    setorderv(combined, c("_ori", "_index"))
+    data.table::setorderv(combined, c("_ori", "_index"))
     if (!is.null(common_col)) {
         for (j in common_col) {
             combined[[j]] = ifelse(
@@ -191,4 +199,28 @@ dfplus_row <- function(..., list = NULL, common_col = NULL) {
     combined[, -c("_ori", "_index")]
 }
 
+# translate: translate specific key words -------------------------------------
+translate <- function(x, lang = "en_US") {
+    if (lang %in% c("zh_cn", "zh_CN", "ZH_cn", "ZH_CN")) {
+        x <- gsub("^term|vari|variable$", "变量", x)
+        x <- gsub("^N|obs|nobs$", "观测数", x)
+        x <- gsub("^r2|R2|r.squared$", "R^2", x)
+        x <- gsub("^ar2|AR2|adj.r.squared$", "调整R^2^", x)
+    }
+    x
+}
+
+# getstat: get stats from estimate result -------------------------------------
+getstat <- function(statname, reglist, digits) {
+    if (grepl("^N|obs$", statname)) statname <- "nobs"
+    if (grepl("^r2|R2$", statname)) statname <- "r.squared"
+    if (grepl("^ar2|AR2$", statname)) statname <- "adj.r.squared"
+
+    stat <- lapply(reglist, broom::glance) %>%
+        data.table::rbindlist()
+    stat <- stat[[statname]]
+    if (is.null(stat)) return("")
+    stat <- lbs::stformat(stat, digits = digits)
+    stat
+}
 

@@ -235,20 +235,23 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
         stopifnot(is.null(stat$label) || length_equal(stat$name, stat$label))
         statlabels <- ifthen(stat$label, translate(stat$name, lang))
         o_stat <- stat$name %>%
-            lapply(getstat, reglist = reglist, fmt = esti[[1]]) %>%
-            data.table::rbindlist() %>%
-            .[term := ..statlabels]
-        stat.add <- stat[-match(c("name", "label", ""), names(stat))]
+            lapply(getstat, reglist = reglist, digits = digits) %>%
+            do.call(rbind, .)
+        o_stat$term = statlabels
+        stat.add <- stat[-match(c("name", "label", ""),
+                                names(stat),
+                                nomatch = length(stat) + 1)]
         if (length(stat.add) != 0) {
             o_stat <- stat.add %>%
                 purrr::map(~ ifthen(.x,
                     fun = is.numeric,
                     then = lbs::stformat(.x, digits = digits, na.replace = ""),
                     otherwise = as.character(.x))) %>%
-                rbindlist() %>%
+                data.table::rbindlist() %>%
                 .[, term := names(..stat.add)] %>%
                 rbind(o_stat)
         }
+        data.table::setcolorder(o_stat, "term")
         o_stat
     })
 
