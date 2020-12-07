@@ -164,96 +164,28 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
     caption = NULL, align = NULL, lang = "en_US",
     vari = list(name = NULL, label = NULL),
     esti = list(estimate = 3L, std.error = "(3)", statistic = NULL,
-                p.value = NULL, singlerow = FALSE),
+                p.value = NULL, singlerow = FALSE,
+                fun = NULL, fun.args = NULL),
     star = list(cut = c(0.1, 0.05, 0.01), symbol = c("*", "**", "***")),
-    stat = list(name = c("N", "r2"), label = c("N", "$R^2$"), NULL),
-    header = list(indep = TRUE, regname = TRUE, regno = TRUE, NULL),
+    stat = list(name = c("N", "r2"), label = c("N", "R^2^")),
+    header = list(indep = TRUE, regname = TRUE, regno = TRUE),
     note = TRUE,
     header.args = list(top = TRUE, multicolumn = TRUE),
     flextable.args = list(parse_markdown = TRUE),
     kable.args = list(), kable.style.args = list()
 ) {
+    # digits for float number
     digits <- ifthen(as.integer(esti$estimate), 3L)
+
     # reglist and header
     reglist <- c(list(...), if(!is.null(reglist)) reglist)
     stopifnot(length(reglist) > 0)
     names(reglist) %<>% ifthen(paste0("R", seq_along(reglist)))
-    header <- do.call("genheader", c(reglist = reglist, header))
+    vari <- adjvari(vari, reglist)
+    header <- genheader(reglist, header)
+    body <- genbody(esti, reglist, vari, star, outfmt)
+    stat <- getstat(stat, reglist, digits, lang)
 
-    # varlist and varlabels
-    vars <- purrr::map(reglist, ~ names(.x$coefficients)) %>%
-        purrr::flatten_chr() %>%
-        unique()
-    vars <- if (!is.null(vari$name)) {
-        stopifnot(all(vari$name %in% vars))
-        vari$name
-    }
-    varlabels <- if (!is.null(vari$label)) {
-        if (is.character(vari$label)) {
-            stopifnot(length_equal(vars, vari$label))
-            vari$label
-        } else if (is.list(vari$label)) {
-            purrr::map_chr(vars, ~ ifthen(vari$label[[.x]], .x))
-        } else {
-            stop("vari$label only accep character vector of list")
-        }
-    } else {
-        vars
-    }
-
-    # body: estimate
-    l.esti <- local({
-        name.esit <- names(esti)[!purrr::map_lgl(esti, is.null)]
-        name.esti <- names.esti[names.esti != "singlerow"]
-        purrr::map(name.esti, ~ getesti(.x, reglist, vars, esti[[.x]]))
-    })
-
-    # body: star
-    if (!is.null(star)) {
-        l.esti[[1]] <- local({
-            stardf <- getesti("p.value", reglist, vars) %>%
-                purrr::map_dfc(genstar, star = adjstar(star, outfmt)) %>%
-            estidf <- copy(l.esti[[1]])
-            for (i in seq_along(stardf)) {
-                if (i == 1L) next
-                estidf[[i]] <- paste0(estidf[[i]], stardf[[i]])
-            }
-            estidf
-        })
-    }
-
-    # body: combined
-    body <- if (isTRUE(esti$singlerow)) {
-        purrr::reduce(l.esti, dfplus_element, ignore_col = "term")
-    } else {
-        dfplus_row(list = l.esti, common_col = "term")
-    }
-    body$term <- varlabels[match(body$term, vars)] %>% rempty("")
-
-    # stats 
-    stat <- local({
-        stopifnot(is.null(stat$label) || length_equal(stat$name, stat$label))
-        statlabels <- ifthen(stat$label, translate(stat$name, lang))
-        o_stat <- stat$name %>%
-            lapply(getstat, reglist = reglist, digits = digits) %>%
-            do.call(rbind, .)
-        o_stat$term = statlabels
-        stat.add <- stat[-match(c("name", "label", ""),
-                                names(stat),
-                                nomatch = length(stat) + 1)]
-        if (length(stat.add) != 0) {
-            o_stat <- stat.add %>%
-                purrr::map(~ ifthen(.x,
-                    fun = is.numeric,
-                    then = lbs::stformat(.x, digits = digits, na.replace = ""),
-                    otherwise = as.character(.x))) %>%
-                data.table::rbindlist() %>%
-                .[, term := names(..stat.add)] %>%
-                rbind(o_stat)
-        }
-        data.table::setcolorder(o_stat, "term")
-        o_stat
-    })
 
     # output
     out <- local({
@@ -264,10 +196,11 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
                         note = gennotelist(note, star, digits),
                         align = align,
                         lang = lang,
+                        flextable.args = flextable.args,
                         header.args = header.args,
                         kable.args = kable.args,
                         kable.style.args = kable.args)
-        docall(paste_("out", outfmt), outargs)
+        do.call(paste0("out", outfmt), outargs)
     })
 
     # export

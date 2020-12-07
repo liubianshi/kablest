@@ -1,5 +1,7 @@
 # adjstar: adjust star vetor --------------------------------------------------
 adjstar <- function(star, outfmt = "text") {
+    if (is.null(star)) return(NULL)
+    names(star) = complete_names(star, c("cut", "symbol"))
     starcut <- star$cut
     starsymbol <- star$symbol
 
@@ -67,27 +69,46 @@ getindep <- function(reg) {
 }
 
 
-# getesti: get estimate result from reglist ------------------------------------
-#
-getesti <- function(coefname, reglist, vars, fmt = NULL)  {
+# getesti: get estimate result ------------------------------------
+getesti <- function(coefname, estilist, vars, fmt = NULL)  {
     stopifnot(length(coefname) == 1L)
-    nameslist <- purrr::map(reglist, ~ names(broom::tidy(.x)))
+    nameslist <- purrr::map(estilist, names)
+
     if (coefname == "term") return(NULL)
     if (!all(purrr::map_lgl(nameslist, ~ coefname %in% .x))) return(NULL)
 
-    dt_coef <- purrr::map(reglist, ~ broom::tidy(.x) %>%
-            data.table::setDT() %>%
-            .[vars, ..coefname, on = "term"]) %>%
-            do.call("cbind", .) %>%
-            .[, term := ..vars] %>%
-            data.table::setcolorder("term") %>%
-            data.table::setnames(c("term", names(reglist)))
+    dt_coef <- estilist %>%
+        purrr::map(data.table::as.data.table) %>%
+        purrr::map(~ .x[vars, ..coefname, on = "term"]) %>%
+        do.call("cbind", .) %>%
+        .[, term := ..vars] %>%
+        data.table::setcolorder("term") %>%
+        data.table::setnames(c("term", names(estilist)))
 
     if (is.null(fmt)) return(dt_coef)
     coef2str(dt_coef, parse_c(fmt))
 }
 
+# genestimate: generate estimate data.table from esitmates result -------------
+genestimate <- function(reglist, fun = NULL, fun.args = NULL) {
+    len <- length(reglist)
 
+    fun %<>% ifthen(coef2df)
+    fun <- c(fun)
+    fun <- fun[rep_len(seq_along(fun), len)]
+
+    fun.args %<>% ifthen(list())
+
+    fun.args <- if (length(fun.args) == 0L) {
+        fun.args[rep_len(1, len)]
+    } else {
+        fun.args[rep_len(seq_along(fun.args), len)]
+    }
+    fun.args <- purrr::map2(reglist, fun.args, ~ c(list(.x), .y))
+    estilist <- purrr::map2(fun, fun.args, do.call)
+    names(estilist) <- names(reglist)
+    estilist
+}
 
 # length_equal: whether two object's length is equal --------------------------
 length_equal <- function(x, y) {
@@ -202,25 +223,181 @@ dfplus_row <- function(..., list = NULL, common_col = NULL) {
 # translate: translate specific key words -------------------------------------
 translate <- function(x, lang = "en_US") {
     if (lang %in% c("zh_cn", "zh_CN", "ZH_cn", "ZH_CN")) {
-        x <- gsub("^term|vari|variable$", "变量", x)
-        x <- gsub("^N|obs|nobs$", "观测数", x)
-        x <- gsub("^r2|R2|r.squared$", "R^2", x)
+        x <- gsub("^Note: $",    "注释：",     x)
+        x <- gsub("^term|vari|variable$",    "变量",     x)
+        x <- gsub("^N|obs|nobs$",            "观测数",   x)
+        x <- gsub("^r2|R2|r.squared$",       "R^2^",     x)
         x <- gsub("^ar2|AR2|adj.r.squared$", "调整R^2^", x)
+    } else if (lang %in% c("en_US", "en_us")) {
+        x <- gsub("^term|vari|variable$",    "Variable", x)
+        x <- gsub("^N|obs|nobs$",            "N",        x)
+        x <- gsub("^r2|R2|r.squared$",       "R^2^",     x)
+        x <- gsub("^ar2|AR2|adj.r.squared$", "Adj R^2^", x)
     }
     x
 }
 
 # getstat: get stats from estimate result -------------------------------------
-getstat <- function(statname, reglist, digits) {
+getstat <- function(stat, reglist, digits, lang = "en_US") {
+    if (is.null(stat)) return(NULL)
+    stat.add <- stat[-match(c("name", "label", ""), names(stat),
+                    nomatch = length(stat) + 1)]
+
+    stat_df <- if (is.null(stat$name) || all(lbs::isempty(stat$name))) {
+        NULL
+    } else {
+        stat$label %<>% ifthen(translate(stat$name, lang))
+        stopifnot(length_equal(stat$name, stat$label))
+        local({
+            l <- lapply(stat$name, getstat_byname, reglist, digits)
+            d <- do.call(rbind, l) %>% as.data.frame()
+            d$term <- stat$label
+            data.table::setcolorder(d, "term")
+        })
+    }
+ 
+    if (length(stat.add) != 0) {
+        add2str <- function(x, len = 0L) {
+            if (is.numeric(x))
+                x <- lbs::stformat(.x, digits = digits, na.replace = "")
+            if (len > 0L)
+                x <- rep_len(x, len)
+            x
+        }
+        stat.add <- local({
+            l <- lapply(stat.add, add2str, len = length(reglist))
+            d <- do.call(rbind, l) %>% as.data.frame()
+            d$term <- names(stat.add)
+            data.table::setcolorder(d, "term")
+        })
+        stat_df <- data.table::rbindlist(list(stat.add, stat_df))
+    }
+
+    if (!is.null(stat_df)) {
+        data.table::setnames(stat_df, c("term", names(reglist)))
+    }
+    stat_df
+}
+
+getstat_byname <- function(statname, reglist, digits) {
     if (grepl("^N|obs$", statname)) statname <- "nobs"
     if (grepl("^r2|R2$", statname)) statname <- "r.squared"
     if (grepl("^ar2|AR2$", statname)) statname <- "adj.r.squared"
+    stopifnot(length(reglist) > 0)
 
-    stat <- lapply(reglist, broom::glance) %>%
-        data.table::rbindlist()
-    stat <- stat[[statname]]
-    if (is.null(stat)) return("")
-    stat <- lbs::stformat(stat, digits = digits)
-    stat
+    if (statname == "nobs") {
+        stat <- purrr::map_int(reglist, ~ ifthen(nrow(.x$model), NA))
+    } else {
+        stat <- purrr::map_dbl(reglist, ~ ifthen(summary(.x)[[statname]], NA))
+    }
+    if (is.null(stat)) return(rep("", length(reglist)))
+    stat <- lbs::stformat(stat, digits = digits, na.replace = "")
+}
+
+# genbody: generate body data.table from estimate result ----------------------
+genbody <- function(esti, reglist, vari, star, outfmt) {
+    vari <- adjvari(vari, reglist)
+    estilist <- genestimate(reglist, esti$fun, esti$fun.args)
+
+    l.esti <- local({
+        n <- names(esti)[!purrr::map_lgl(esti, is.null)]
+        n <- n[!n %in% c("singlerow", "fun", "fun.args")]
+        purrr::map(n, ~ getesti(.x, estilist, vari$name, esti[[.x]]))
+    })
+
+    if (!is.null(star)) {
+        l.esti[[1]] <- local({
+            stardf <- getesti("p.value", estilist, vari$name) %>%
+                purrr::map_dfc(genstar, star = adjstar(star, outfmt))
+            estidf <- l.esti[[1]]
+            for (i in seq_along(stardf)) {
+                if (i == 1L) next
+                estidf[[i]] <- paste0(estidf[[i]], stardf[[i]])
+            }
+            estidf
+        })
+    }
+
+    # body: combined
+    body <- if (length(l.esti) <= 1L) {
+        l.esti[[1]]
+    } else {
+        if (isTRUE(esti$singlerow)) {
+            purrr::reduce(l.esti, dfplus_element, ignore_col = "term")
+        } else {
+            dfplus_row(list = l.esti, common_col = "term")
+        }
+    }
+    body$term <- vari$label[match(body$term, vari$name)] %>% rempty("")
+    body
+}
+
+# adjvari: adjust variable list -----------------------------------------------
+adjvari <- function(vari, reglist) {
+    vari %<>% ifthen(list(name = NULL, label = NULL))
+    names(vari) <- complete_names(vari, c("name", "label"))
+    vars <- purrr::map(reglist, ~ names(.x$coefficients)) %>%
+        purrr::flatten_chr() %>%
+        unique()
+    vari$name %<>% ifthen(vars)
+    vari$label %<>% ifthen(vars)
+    vari$label <- if (is.character(vari$label)) {
+        stopifnot(length_equal(vars, vari$label))
+        vari$label
+    } else if (is.list(vari$label)) {
+        purrr::map_chr(vari$name, ~ ifthen(vari$label[[.x]], .x))
+    } else {
+        stop("vari$label only accep character vector of list")
+    }
+    vari
+}
+
+# complete_names: complete object names ---------------------------------------
+complete_names <- function(obj, n) {
+    nms <- names(obj)
+    if (is.null(nms)) {
+        nms_null = seq_along(obj) 
+        nms_not_null = NULL
+    } else {
+        nms_null <- which(nms == "")
+        nms_not_null <- nms[which(nms != "")]
+    }
+    n <- n[!(n %in% nms_not_null)]
+
+    nms[nms_null] <- n[seq_along(nms_null)]
+    nms[is.na(nms)] <- ""
+    nms
+}
+
+# coef2df: translate coefficients of regression to data.frame -----------------
+coef2df <- function(reg) {
+    reg_coef <- summary(reg)$coefficients
+    coef_df <- as.data.frame(reg_coef, stringsAsFactors = FALSE)
+    coefnames <- c("estimate", "std.error", "statistic", "p.value")
+    names(coef_df) <- coefnames
+    coef_df$term <- row.names(reg_coef)
+    coef_df[c("term", coefnames)]
+}
+
+# outtext: output result in raw textformat
+outtext <- function(body, stat, ...) {
+    rbind(body, stat)
+}
+
+# gennotelist: generate notlist
+gennotelist <- function(note, star, digits = 3L, lang = "en_US") {
+    if (is.null(note) || isFALSE(note)) return(NULL)
+    note <- if (isTRUE(note)) {
+        star <- adjstar(star, "text")
+        star$symbol %<>% escape("*^_`~")
+        note <- paste0(star$symbol, " p <", format(star$cut, digits = digits))
+        note <- paste(note, collapse = ", ")
+    }
+    note.list <- list()
+    if (is.character(note)) {
+        note.list$general = note
+        note.list$general_title = translate("Note ", lang)
+    }
+    note.list
 }
 

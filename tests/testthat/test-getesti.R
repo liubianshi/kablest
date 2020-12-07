@@ -22,18 +22,18 @@ test_that("get estimate result from regslit", {
     names(l.reg) <- paste0("R", seq_along(l.reg))
     vars <- c("groupTrt", "log(u)")
 
-    expect_null(getesti("TEST", l.reg, vars))
-    expect_null(getesti("term", l.reg, vars))
+    expect_null(getesti("TEST", genestimate(l.reg), vars))
+    expect_null(getesti("term", genestimate(l.reg), vars))
 
-    result <- getesti("estimate", l.reg, vars, fmt = 3)
+    result <- getesti("estimate", genestimate(l.reg), vars, fmt = 3)
     expect_equal(result$term, vars)
     expect_equal(names(result), c("term", names(l.reg)))
     expect_equal(as.character(result[1,]), c("groupTrt", "-0.371", "4.661", "", ""))
 
-    result2 <- getesti("statistic", l.reg, vars, fmt = "(2)")
+    result2 <- getesti("statistic", genestimate(l.reg), vars, fmt = "(2)")
     expect_equal(result2[[3]], c("(21.17)", ""))
 
-    result3 <- getesti("p.value", l.reg, vars, fmt = "[3]")
+    result3 <- getesti("p.value", genestimate(l.reg), vars, fmt = "[3]")
     expect_equal(result3[[2]], c("[0.249]", ""))
 
     com <- dfplus_row(result, result2, result3, common_col = "term")
@@ -44,7 +44,7 @@ test_that("get estimate result from regslit", {
     expect_equal(com2$term, vars)
     expect_equal(com2$R1, c("-0.371 (-1.191)", " "))
 
-    stardf <- getesti("p.value", l.reg, vars) %>%
+    stardf <- getesti("p.value", genestimate(l.reg), vars) %>%
         purrr::map_dfc(genstar, star = list(cut = 0.01, symbol = "🌟"))
     result <- dfplus_element(result, stardf, "term", sep = "")
     com <- dfplus_row(result, result2, common_col = "term")
