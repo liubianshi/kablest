@@ -8,20 +8,21 @@ Authors@R:
            email = "liu.bian.shi@gmail.com",
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: Do not know what to write for now.
-License: GPL (>= 2.0)
-Encoding: UTF-8
-LazyData: true
+License: GPL-3
 Depends:
-    R (>= 3.6.1),
-    magrittr
+    R (>= 3.6.1)
 Imports:
+    magrittr
     data.table,
-    purrr,
-    broom (>= 0.5.2),
-Suggests:
     knitr (>= 1.24),
     kableExtra (>= 1.1.0),
     flextable,
     ftExtra,
+    purrr,
+Suggests:
+    broom (>= 0.5.2),
     testthat
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
