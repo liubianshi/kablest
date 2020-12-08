@@ -14,6 +14,9 @@ NULL
 #' @importFrom magrittr %>%
 magrittr::`%>%`
 
+#' @importFrom magrittr %<>%
+magrittr::`%<>%`
+
 #' @importFrom data.table :=
 data.table::`:=`
 

@@ -15,10 +15,10 @@ kablest(
   lang = "en_US",
   vari = list(name = NULL, label = NULL),
   esti = list(estimate = 3L, std.error = "(3)", statistic = NULL, p.value = NULL,
-    singlerow = FALSE),
+    singlerow = FALSE, fun = NULL, fun.args = NULL),
   star = list(cut = c(0.1, 0.05, 0.01), symbol = c("*", "**", "***")),
-  stat = list(name = c("N", "r2"), label = c("N", "$R^2$"), NULL),
-  header = list(indep = TRUE, regname = TRUE, regno = TRUE, NULL),
+  stat = list(name = c("N", "r2"), label = c("N", "R^2^")),
+  header = list(indep = TRUE, regname = TRUE, regno = TRUE),
   note = TRUE,
   header.args = list(top = TRUE, multicolumn = TRUE),
   flextable.args = list(parse_markdown = TRUE),
@@ -29,13 +29,13 @@ kablest(
 \arguments{
 \item{path}{Path or connection to write to.}
 
-\item{append}{If `FALSE`, will overwrite existing file. If `TRUE`, will
+\item{append}{If \code{FALSE}, will overwrite existing file. If \code{TRUE}, will
 append to existing file. In both cases, if file does not exist a
 new file is created.}
 
 \item{caption}{the table caption.}
 
-\item{align}{Column alignment: a character vector consisting of \code{l} 
+\item{align}{Column alignment: a character vector consisting of \code{l}
 (left), \code{c} (center) and/or \code{r} (right). By default or
 if \code{align = NULL}, numeric columns are right-aligned, and
 other columns are left-aligned.}
@@ -45,7 +45,7 @@ the meaning of significant symbol.}
 
 \item{kable.args}{parameter list which will be passed to \code{knitr::kable}
 to control the display of the \code{latex} and/or \code{markdown}
-format 
+format
 output. When a \code{kable.args} conflicts with the of \code{kablest},
 the setting of \code{kablest} will prevail.}
 
@@ -70,35 +70,35 @@ HTML or LaTeX tables.}
 \item{LANG}{the language used to automatically generate default names}
 
 \item{column.name}{a string vector for column names of output kabel.
-by default or if \code{column.name = NULL}, the column names if 
+by default or if \code{column.name = NULL}, the column names if
 regression number.}
 
 \item{var.drop}{a string vector for variables needed to drop out.}
 
-\item{var.drop.method}{\code{exact} (default) or \code{regex}; the 
+\item{var.drop.method}{\code{exact} (default) or \code{regex}; the
 method used to match string.}
 
 \item{var.keep}{a string vector for variables needed to keep.}
 
-\item{var.keep.method}{\code{exact} (default) or \code{regex}; the 
+\item{var.keep.method}{\code{exact} (default) or \code{regex}; the
 method used to match string.}
 
 \item{var.order}{a variable name vector for sort variables.}
 
-\item{var.order.method}{\code{exact} (default) or \code{regex}; the 
+\item{var.order.method}{\code{exact} (default) or \code{regex}; the
 method used to match string.}
 
 \item{var.label}{a string vector or a list. If \code{var.label = NULL},
-using varname; if \code{var.label} is a string vector, its length 
-and order must consistent with the remaining variables; if 
+using varname; if \code{var.label} is a string vector, its length
+and order must consistent with the remaining variables; if
 \code{var.label} is a list, element name must in remainning variables.}
 
 \item{single.row}{T/F, whether to display \code{coef}, \code{se} and \code{t}
 in one line.}
 
 \item{coef.alter}{a string; by the default or \code{coef.alter = NULL}, the
-output kable will display \code{coef} first. Otherwise, the variable  
-corresponding to the string will be displayed. The string must be a  
+output kable will display \code{coef} first. Otherwise, the variable
+corresponding to the string will be displayed. The string must be a
 variable of \code{broom::tidy} output.}
 
 \item{coef.se}{T/F; whether display \code{se} (standard error). The default
@@ -179,17 +179,17 @@ adjacent column are the same.}
 }
 \value{
 A kable. If \code{style = "text"}, the \code{kablest} will print
-     the output as a \code{data.frame} and return a character \code{tibble}.
-     If \code{style} is \code{markdown}, \code{latex} or \code{html},
-     \code{kablest} will print and return a formated kable which can handled
-     by \code{kableExtra}.
+the output as a \code{data.frame} and return a character \code{tibble}.
+If \code{style} is \code{markdown}, \code{latex} or \code{html},
+\code{kablest} will print and return a formated kable which can handled
+by \code{kableExtra}.
 }
 \description{
 Based on tidy tibble form regress model results converted by \code{broom}
-     package, \code{kablest} created an academic table including: coef or
-     other similar variable provided by \code{broom::tidy}, se and/or t 
-     statistic, significant symbol, model observations numbers, and/or 
-     other model statistics provided by \code{broom:glance}.
+package, \code{kablest} created an academic table including: coef or
+other similar variable provided by \code{broom::tidy}, se and/or t
+statistic, significant symbol, model observations numbers, and/or
+other model statistics provided by \code{broom:glance}.
 }
 \examples{
 ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)

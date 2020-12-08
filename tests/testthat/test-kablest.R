@@ -21,5 +21,7 @@ l.reg <- local({
 
 test_that("outtext", {
     result <- kablest(reglist = l.reg)
-    print(result)
+    expect_equal(result$term[10], "R^2^")
+    expect_equal(result$R2[10], "0.982")
+    expect_equal(result$R4[7], "0.024***")
 })

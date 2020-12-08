@@ -62,7 +62,6 @@ test_that("test custom function", {
                  fun = .genesti, fun.args = list(m = 10L))
     star = adjstar(list(0.01, "*"))
     vari <- list(c("groupTrt", "log(u)"), list("log(u)" = "log_u"))
-
     result <- genbody(esti, l.reg, vari, star, "text")
     expect_equal(result[1, R1], "-3.710 (3.114)")
     expect_equal(result[2, R3], "0.153* (0.004)")

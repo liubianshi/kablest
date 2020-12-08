@@ -1,24 +1,23 @@
-Package: kablest
-Title: Convert estimate results into a academic kable 
+Package: tabreg
+Title: Tabulating Regression for Report and Further Processing
 Version: 0.0.0.9001
 Authors@R: 
     person(given = "Wei",
            family = "Luo",
            role = c("aut", "cre"),
-           email = "liu.bian.shi@gmail.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+           email = "liu.bian.shi@gmail.com")
 Description: Do not know what to write for now.
 License: GPL-3
 Depends:
     R (>= 3.6.1)
 Imports:
-    magrittr
+    magrittr,
     data.table,
     knitr (>= 1.24),
     kableExtra (>= 1.1.0),
     flextable,
     ftExtra,
-    purrr,
+    purrr
 Suggests:
     broom (>= 0.5.2),
     testthat
