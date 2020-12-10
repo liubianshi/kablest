@@ -23,10 +23,10 @@ test_that("Generate header list", {
     expect_equal(genheader(l.reg, header)$indep, c("weight", "weight", "lot1", "lot2"))
     expect_equal(genheader(l.reg, header)$regno, c("(1)", "(2)", "(3)", "(4)"))
     expect_equal(genheader(l.reg, list(t = "test"))$t, c("test", "test", "test", "test"))
-    expect_equal(genheader(l.reg, list(regname = paste0("R", seq_along(l.reg)))),
+    expect_equal(genheader(l.reg, list(regname = paste0("R", seq_along(l.reg)), regno = FALSE, indep = FALSE)),
                  list(regname = c("R1", "R2", "R3", "R4")))
-    expect_equal(genheader(l.reg, list(regno = T, "x")),
-                 list(regno = c("(1)", "(2)", "(3)", "(4)"), rep("x", 4)))
-    expect_equal(genheader(l.reg, list(test = c(c1 = 2, c2 = 3))),
+    expect_equal(genheader(l.reg, list("x", regno = T, indep = F, regname = F )),
+                 list(rep("x", 4), regno = c("(1)", "(2)", "(3)", "(4)")))
+    expect_equal(genheader(l.reg, list(test = c(c1 = 2, c2 = 3), regno = FALSE, regname = FALSE, indep = FALSE)),
                  list(test = c("c1", "c1", "c2", "c2")))
 })

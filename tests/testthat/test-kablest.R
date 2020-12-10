@@ -25,3 +25,21 @@ test_that("outtext", {
     expect_equal(result$R2[10], "0.982")
     expect_equal(result$R4[7], "0.024***")
 })
+
+test_that("insertemptycolumn", {
+    l <- list(c("a", "b", "b", "c", "c"), c("d", "d", "e", "e", "e"))
+    name <- LETTERS[1:5]
+    expect_equal(insertemptycolumn(l, name)[[1]],
+                 list(c("a", "  ", "b", "b", "b", "  ", "c", "c"),
+                      c("d", "d", "d", "  ", "e", "e", "e", "e"))
+    )
+})
+
+test_that("outflextable", {
+    result <- kablest(reglist = l.reg,
+                      outfmt = "flextable",
+                      header = list(c("A", "A", "B", "B"),
+                                    regname = FALSE), lang = "zh_CN")
+    print(result, preview = "html")
+})
+

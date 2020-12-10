@@ -17,6 +17,7 @@ Imports:
     kableExtra (>= 1.1.0),
     flextable,
     ftExtra,
+    rmarkdown,
     purrr
 Suggests:
     broom (>= 0.5.2),

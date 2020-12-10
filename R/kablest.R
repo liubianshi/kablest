@@ -171,7 +171,7 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
     header = list(indep = TRUE, regname = TRUE, regno = TRUE),
     note = TRUE,
     header.args = list(top = TRUE, multicolumn = TRUE),
-    flextable.args = list(parse_markdown = TRUE),
+    flextable.args = list(empty_col = TRUE, multicolumn_line = TRUE),
     kable.args = list(), kable.style.args = list()
 ) {
     # digits for float number
@@ -182,6 +182,7 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
     stopifnot(length(reglist) > 0)
     names(reglist) %<>% ifthen(paste0("R", seq_along(reglist)))
     vari <- adjvari(vari, reglist)
+    star <- adjstar(star, outfmt)
     header <- genheader(reglist, header)
     body <- genbody(esti, reglist, vari, star, outfmt)
     stat <- getstat(stat, reglist, digits, lang)
@@ -192,8 +193,9 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
         outargs <- list(body = body,
                         stat = stat,
                         header = header,
+                        star = star,
                         caption = caption,
-                        note = gennotelist(note, star, digits),
+                        note = gennotelist(note, star, digits, lang),
                         align = align,
                         lang = lang,
                         flextable.args = flextable.args,

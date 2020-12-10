@@ -14,7 +14,7 @@ adjstar <- function(star, outfmt = "text") {
     stopifnot(length(starsymbol) >= length(starcut))
     starsymbol <- starsymbol[seq_along(starcut)] 
 
-    if (outfmt != "text") {
+    if (!outfmt %in% c("text", "flextable")) {
         starsymbol <- escape(starsymbol, chars = "*^_`~")
         starsymbol <- paste0("^", starsymbol, "^")
     }
@@ -147,7 +147,7 @@ genbody <- function(esti, reglist, vari, star, outfmt) {
     if (!is.null(star)) {
         l.esti[[1]] <- local({
             stardf <- getesti("p.value", estilist, vari$name) %>%
-                purrr::map_dfc(genstar, star = adjstar(star, outfmt))
+                purrr::map_dfc(genstar, star = star)
             estidf <- l.esti[[1]]
             for (i in seq_along(stardf)) {
                 if (i == 1L) next
@@ -197,8 +197,8 @@ genheader <- function(reglist, header) {
     if (is.null(header)) return(NULL)
 
     nulltrue <- function(x, true) {
-        if (is.null(x) || isFALSE(x)) return(NULL)
-        if (isTRUE(x)) return(true)
+        if (isFALSE(x)) return(NULL)
+        if (is.null(x) || isTRUE(x)) return(true)
         x
     }
     header$indep %<>% nulltrue(purrr::map_chr(reglist, getindep))
@@ -221,14 +221,13 @@ gennotelist <- function(note, star, digits = 3L, lang = "en_US") {
     if (is.null(note) || isFALSE(note)) return(NULL)
     note <- if (isTRUE(note)) {
         star <- adjstar(star, "text")
-        star$symbol %<>% escape("*^_`~")
         note <- paste0(star$symbol, " p <", format(star$cut, digits = digits))
         note <- paste(note, collapse = ", ")
     }
     note.list <- list()
     if (is.character(note)) {
         note.list$general = note
-        note.list$general_title = translate("Note ", lang)
+        note.list$general_title = translate("Note: ", lang)
     }
     note.list
 }
@@ -350,18 +349,72 @@ length_equal <- function(x, y) {
 
 # outtext: output result in raw textformat ------------------------------------
 outtext <- function(body, stat, ...) {
-    ft <- flextable::flextable()
-    rbind(body, stat)
+    dt <- rbind(body, stat)
 }
 
+#
 # outflextable: output result in raw flextable format -------------------------
-outflextable <- function(body, stat, header, caption, note, flextable.args, ...) {
-    ft <- rbind(body, stat) %>%
-        flextable::flextable()
+outflextable <- function(body, stat, header, star, caption, note, lang,
+                         header.args,  flextable.args, ...) {
+    fpmin <- officer::fp_border(width = 1)
+    fpmax <- officer::fp_border(width = 1.5)
+    hline <- nrow(body)
+    key_cols <- names(body)
+    body <- rbind(body, stat)
+
     if (!is.null(header)) {
-        ft <- delete_part(x = ft, part = "header")
+        header <- purrr::map(header[length(header):1], ~ c("", .x))
+        header[[1]][1] <- translate("variable", lang)
+        if (isTRUE(header.args$multicolumn) && isTRUE(flextable.args$empty_col)) {
+            header_name <- insertemptycolumn(header, key_cols)
+            header <- header_name[[1]]
+            key_cols  <- header_name[[2]]
+            rm(header_name)
+        }
     }
 
+    ft <- flextable::flextable(body, key_cols)
+    for (i in seq_along(body)) {
+        n <- names(body)[i]
+        if (i == 1L) {
+            ft %<>% flextable::compose(j = n,
+                value = purrr::map(body[[i]], ~ flextable::as_paragraph(
+                        list_values = square2sup(.x))[[1]]))
+        } else {
+            ft %<>% flextable::compose(j = n,
+                value = star2sup(body[[n]], star$symbol))
+        }
+    }
+
+    if (!is.null(header)) {
+        ft <- flextable::delete_part(ft, part = "header")
+        for (h in header) {
+            ft %<>% flextable::add_header_row(values = h)
+            if (isTRUE(header.args$multicolumn)) {
+                ft %<>% flextable::merge_h(i = 1, part = "header") 
+                if (!isFALSE(flextable.args$multicolumn_line)) {
+                    hh <- squeeze(h)
+                    hh <- cumsum(hh)[which(hh > 1L) - 1] + 1
+                    ft %<>% flextable::hline(i = 1, j = hh,
+                        border = fpmin, part = "header")
+                    rm(hh)
+                }
+            }
+        }
+    }
+
+    if (!is.null(note)) {
+        note <- paste0(note$general_title, note$general, ".") %>%
+            flextable::as_paragraph()
+        print(note)
+        ft %<>% flextable::footnote(value = note, ref_symbols = "")
+    }
+
+    ft %<>% flextable::hline_top(border = fpmax, part = "header") %>%
+        flextable::hline_bottom(border = fpmin, part = "header") %>%
+        flextable::hline(i = hline, border = fpmin) %>%
+        flextable::autofit()
+    ft
 }
 
 # parse_c: parse numeric format -----------------------------------------------
@@ -405,5 +458,93 @@ translate <- function(x, lang = "en_US") {
         x <- gsub("^ar2|AR2|adj.r.squared$", "Adj R^2^", x)
     }
     x
+}
+
+# squeeze: squeeze vector -----------------------------------------------------
+squeeze <- function(x) {
+    num <- c(1, which(x != data.table::shift(x)))
+    y <- diff(c(num, length(x) + 1))
+    names(y) <- x[num]
+    y
+}
+
+# star2sup: transform star to supscript ---------------------------------------
+star2sup <- function(x, symbol = "*") {
+    if (length(symbol) == 1L && nchar(symbol[1]) == 1L) {
+        symbol <- sub("^", "\\^", symbol, fixed = TRUE) %>%
+            paste0("([", ., "]+)")
+    } else {
+        symbol <- strsplit(symbol, "") %>%
+            purrr::map(~ sub("^", "\\^", .x, fixed = TRUE)) %>%
+            purrr::map(~paste0("[", .x, "]")) %>%
+            purrr::map(paste, collapse = "") %>%
+            paste(collapse = "|") %>%
+            paste0("(", ., ")")
+    }
+    if (all(!grepl(paste0(symbol, "$"), x))) return(x)
+
+    x <- sub(paste0(symbol, "*$"), "\t\\1", x)
+    x <- strsplit(x, "\t")
+    x <- purrr::map(x, ~ {
+        if (length(.x) == 1L) .x[2] = ""
+        .x
+    })
+    x <- do.call(rbind, x)
+    star_chunk <- flextable::as_sup(x[, 2])
+    flextable::as_paragraph(x[,1], star_chunk)
+}
+
+# square2sup: parse squre to flextable sup -------------------------------
+square2sup <- function(string, syntax = "sup") {
+    if (is.na(string) || is.null(string)) return(NULL)
+    if (length(syntax) == 0L) return(string)
+    stopifnot(is.character(string) && length(string) == 1L)
+    if (length(syntax) >= 2L) {
+        return(c(square2sup(string, syntax[1]), square2sup(string, syntax[-1])))
+    }
+    n <- switch(syntax,
+        b = sub("[*]{2}([^*]+)[*]{2}[_]|{2}([^_]+)[*]{_}", "\t\\1\\2\t", string),
+        i = sub("[_]([^*]+)[_]|[*]([^*]+)[*]", "\t\\1\\2\t", string),
+        sup = sub("\\^([^^]+)\\^", "\t\\1\t", string),
+        sub = sub("[~]([^~]+)[~]", "\t\\1\t", string)
+    )
+    n <- strsplit(n, "\t") %>% .[[1]]
+    stopifnot(length(n) <= 3L)
+    if (length(n) == 1L) {
+        string
+    } else 
+        c(square2sup(n[1]),
+          list(do.call(`::`, list("flextable", paste0("as_", syntax)))(n[2])),
+          square2sup(n[3]))
+}
+
+# insertemptycolumn: insert empty column for flextable ------------------------
+insertemptycolumn <- function(l, name) {
+    # insert space before and after continuous value, for example
+    # form list(c("a", "b", "b", "c", "c"), c("d", "d", "e", "e", "e"))
+    # to list(c("a", "", "b", "b", "b", "", "c" "c"),
+    #         c("d", "d", "d", "", "e", "e", "e", "e"))
+    stopifnot(all(purrr::map_int(l, length) == length(name)))
+
+    empty = purrr::map(l, ~ which(.x != data.table::shift(.x))) %>%
+        purrr::flatten_int() %>%
+        unique() %>%
+        sort()
+
+    f <- function(v, empty) {
+        if (length(empty) == 1L)
+            c(v[1:(empty - 1)], "  ", v[empty:length(v)])
+        else
+            f(f(v, empty[1]), empty[-1] + 1)
+    }
+    name %<>% f(empty)
+    name <- ifelse(name == "  ", paste0("..", seq_along(name)), name)
+    l %<>% purrr::map(~ {
+        l0 <- f(.x, empty)
+        e0 <- empty[-match(which(.x != data.table::shift(.x)), empty)]
+        l0[e0 + match(e0, empty) - 1] <- .x[e0]
+        l0
+    })
+    list(l, name)
 }
 
