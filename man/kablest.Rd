@@ -21,7 +21,7 @@ kablest(
   header = list(indep = TRUE, regname = TRUE, regno = TRUE),
   note = TRUE,
   header.args = list(top = TRUE, multicolumn = TRUE),
-  flextable.args = list(parse_markdown = TRUE),
+  flextable.args = list(empty_col = TRUE, multicolumn_line = TRUE),
   kable.args = list(),
   kable.style.args = list()
 )

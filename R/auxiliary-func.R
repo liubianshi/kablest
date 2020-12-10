@@ -495,13 +495,16 @@ star2sup <- function(x, symbol = "*") {
 }
 
 # square2sup: parse squre to flextable sup -------------------------------
-square2sup <- function(string, syntax = "sup") {
+square2sup <- function(string, syntax = "sup", attr = NULL) {
     if (is.na(string) || is.null(string)) return(NULL)
     if (length(syntax) == 0L) return(string)
     stopifnot(is.character(string) && length(string) == 1L)
     if (length(syntax) >= 2L) {
         return(c(square2sup(string, syntax[1]), square2sup(string, syntax[-1])))
     }
+
+    patten_l 
+
     n <- switch(syntax,
         b = sub("[*]{2}([^*]+)[*]{2}[_]|{2}([^_]+)[*]{_}", "\t\\1\\2\t", string),
         i = sub("[_]([^*]+)[_]|[*]([^*]+)[*]", "\t\\1\\2\t", string),

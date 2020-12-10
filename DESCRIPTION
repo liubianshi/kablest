@@ -16,7 +16,6 @@ Imports:
     knitr (>= 1.24),
     kableExtra (>= 1.1.0),
     flextable,
-    ftExtra,
     rmarkdown,
     purrr
 Suggests:
