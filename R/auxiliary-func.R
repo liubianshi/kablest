@@ -14,7 +14,9 @@ adjstar <- function(star, outfmt = "text") {
     stopifnot(length(starsymbol) >= length(starcut))
     starsymbol <- starsymbol[seq_along(starcut)] 
 
-    if (!outfmt %in% c("text", "flextable")) {
+    if (outfmt %in% c("flextable", "docx", "word")) {
+        starsymbol <- paste0("^", starsymbol, "^")
+    } else if (outfmt %in% c("html", "pdf", "kable")) {
         starsymbol <- escape(starsymbol, chars = "*^_`~")
         starsymbol <- paste0("^", starsymbol, "^")
     }
@@ -378,11 +380,12 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
         n <- names(body)[i]
         if (i == 1L) {
             ft %<>% flextable::compose(j = n,
-                value = purrr::map(body[[i]], ~ flextable::as_paragraph(
-                        list_values = square2sup(.x))[[1]]))
+                                       value = str2paragraph(body[[i]]))
         } else {
-            ft %<>% flextable::compose(j = n,
-                value = star2sup(body[[n]], star$symbol))
+            ft %<>% flextable::compose(
+                j = n,
+                value = str2paragraph(body[[i]], syntax = "sup")
+            )
         }
     }
 
@@ -405,9 +408,8 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
 
     if (!is.null(note)) {
         note <- paste0(note$general_title, note$general, ".") %>%
-            flextable::as_paragraph()
-        print(note)
-        ft %<>% flextable::footnote(value = note, ref_symbols = "")
+            str2paragraph()
+        ft %<>% flextable::footnote(value = note, ref_symbols = "" )
     }
 
     ft %<>% flextable::hline_top(border = fpmax, part = "header") %>%
@@ -449,13 +451,13 @@ translate <- function(x, lang = "en_US") {
         x <- gsub("^Note: $",    "注释：",     x)
         x <- gsub("^term|vari|variable$",    "变量",     x)
         x <- gsub("^N|obs|nobs$",            "观测数",   x)
-        x <- gsub("^r2|R2|r.squared$",       "R^2^",     x)
-        x <- gsub("^ar2|AR2|adj.r.squared$", "调整R^2^", x)
+        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",     x)
+        x <- gsub("^ar2|AR2|adj.r.squared$", "调整*R*^2^", x)
     } else if (lang %in% c("en_US", "en_us")) {
         x <- gsub("^term|vari|variable$",    "Variable", x)
         x <- gsub("^N|obs|nobs$",            "N",        x)
-        x <- gsub("^r2|R2|r.squared$",       "R^2^",     x)
-        x <- gsub("^ar2|AR2|adj.r.squared$", "Adj R^2^", x)
+        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",     x)
+        x <- gsub("^ar2|AR2|adj.r.squared$", "Adj *R*^2^", x)
     }
     x
 }
@@ -494,31 +496,70 @@ star2sup <- function(x, symbol = "*") {
     flextable::as_paragraph(x[,1], star_chunk)
 }
 
-# square2sup: parse squre to flextable sup -------------------------------
-square2sup <- function(string, syntax = "sup", attr = NULL) {
-    if (is.na(string) || is.null(string)) return(NULL)
-    if (length(syntax) == 0L) return(string)
-    stopifnot(is.character(string) && length(string) == 1L)
-    if (length(syntax) >= 2L) {
-        return(c(square2sup(string, syntax[1]), square2sup(string, syntax[-1])))
-    }
-
-    patten_l 
-
-    n <- switch(syntax,
-        b = sub("[*]{2}([^*]+)[*]{2}[_]|{2}([^_]+)[*]{_}", "\t\\1\\2\t", string),
-        i = sub("[_]([^*]+)[_]|[*]([^*]+)[*]", "\t\\1\\2\t", string),
-        sup = sub("\\^([^^]+)\\^", "\t\\1\t", string),
-        sub = sub("[~]([^~]+)[~]", "\t\\1\t", string)
+# supported_md_syntax: currently supported syntax -----------------------------
+supported_md_syntax <- function() {
+    md <- list(
+        b   = list(p = "[*]{2}([^*]+)[*]{2}|[_]{2}([^_]+)[_]{2}", r = "\t\\1\\2\t"),
+        i   = list(p = "[_]([^_]+)[_]|[*]([^*]+)[*]",             r = "\t\\1\\2\t"),
+        sup = list(p = "\\^([^^]+)\\^",                           r = "\t\\1\t"),
+        sub = list(p = "[~]([^~]+)[~]",                           r = "\t\\1\t")
     )
-    n <- strsplit(n, "\t") %>% .[[1]]
-    stopifnot(length(n) <= 3L)
-    if (length(n) == 1L) {
-        string
-    } else 
-        c(square2sup(n[1]),
-          list(do.call(`::`, list("flextable", paste0("as_", syntax)))(n[2])),
-          square2sup(n[3]))
+    md
+}
+
+# parse_md: parse string in markdown syntax -----------------------------------
+parse_md <- function(s, syntax = c("sup", "i", "b", 'sub'), a = NULL) {
+    if (is.null(s) || is.na(s) || s == "") return(NULL)
+    if (length(syntax) == 0L) return(s)
+
+    md_syntax <- supported_md_syntax()
+    md_syntax_names <- names(md_syntax)
+    if (!all(syntax %in% md_syntax_names)) 
+        stop("Only support '", paste(md_syntax_names, collapse = ", "), "'.")
+
+    index <- purrr::map_int(syntax,
+        ~ regexpr(md_syntax[[.x]]$p, s, perl = TRUE)[[1]])
+    if (all(index == -1L))
+        return(if (is.null(a)) list(list(s = s)) else c(s = s, a))
+    syntax_match_first <- syntax[index > 0L][which.min(index[index > 0L])]
+
+    a.new <- a
+    a.new[[syntax_match_first]] <- TRUE
+    ss <- sub(md_syntax[[syntax_match_first]]$p,
+              md_syntax[[syntax_match_first]]$r, s, perl = TRUE)
+    ss <- strsplit(ss, "\t")[[1]]
+
+    c(parse_md(ss[1], syntax, a),
+      list(parse_md(ss[2], syntax, a.new)),
+      parse_md(ss[3], syntax, a))
+}
+
+# mdlist2chunk: translate parsed markdown list to flextable chunk -------------
+mdlist2chunk <- function(l) {
+    if (length(l) == 0) return(list(flextable::as_chunk("")))
+    l_normal <- l[!purrr::map_lgl(l, is.list)]
+    l_list <- l[purrr::map_lgl(l, is.list)]
+    if (length(l_normal) == 0)
+        return(c(mdlist2chunk(l[[1]]), mdlist2chunk(l[-1])))
+    if (length(l_list) != 0L) 
+        return(c(mdlist2chunk(l_normal), mdlist2chunk(l_list)))
+    if (is.null(l$s)) return(NULL) 
+    chunk <- flextable::as_chunk(l$s)
+    if (isTRUE(l$i))   chunk$italic           <- TRUE
+    if (isTRUE(l$b))   chunk$bold             <- TRUE
+    if (isTRUE(l$sup)) chunk$vertical.align   <- "superscript"
+    if (isTRUE(l$sub)) chunk$vertical.align   <- "subscript"
+    list(chunk)
+}
+
+# str2paragraph: translate markdown string vector to flextable paragrap -------
+str2paragraph <- function(x, syntax = c("b", "i", "sup", "sub"), a = NULL) {
+    l_list <- purrr::map(as.character(x), parse_md, syntax, a)
+    chunk_list <- purrr::map(l_list, mdlist2chunk)
+    para_list <- purrr::map(chunk_list, ~
+            flextable::as_paragraph(list_values = .x)[[1]]
+    )
+    para_list
 }
 
 # insertemptycolumn: insert empty column for flextable ------------------------

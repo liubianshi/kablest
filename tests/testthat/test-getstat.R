@@ -33,7 +33,7 @@ test_that("get estimate stats from regslit", {
                  "Year Effects" = rep("Y", 4), 
                  "Firm Effects" = rep("Y", 4))  
     terms <- c("Year Effects", "Firm Effects", "test",
-               "N", "R^2^", "Adj R^2^")
+               "N", "*R*^2^", "Adj *R*^2^")
     o_stat <- getstat(stat, l.reg, 3L)
     data.table::setcolorder(o_stat, "term")
     expect_equal(o_stat$term, terms)

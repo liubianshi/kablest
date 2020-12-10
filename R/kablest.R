@@ -167,7 +167,7 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
                 p.value = NULL, singlerow = FALSE,
                 fun = NULL, fun.args = NULL),
     star = list(cut = c(0.1, 0.05, 0.01), symbol = c("*", "**", "***")),
-    stat = list(name = c("N", "r2"), label = c("N", "R^2^")),
+    stat = list(name = c("N", "r2"), label = c("N", "*R*^2^")),
     header = list(indep = TRUE, regname = TRUE, regno = TRUE),
     note = TRUE,
     header.args = list(top = TRUE, multicolumn = TRUE),
@@ -186,7 +186,6 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
     header <- genheader(reglist, header)
     body <- genbody(esti, reglist, vari, star, outfmt)
     stat <- getstat(stat, reglist, digits, lang)
-
 
     # output
     out <- local({

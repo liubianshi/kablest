@@ -21,7 +21,7 @@ l.reg <- local({
 
 test_that("outtext", {
     result <- kablest(reglist = l.reg)
-    expect_equal(result$term[10], "R^2^")
+    expect_equal(result$term[10], "*R*^2^")
     expect_equal(result$R2[10], "0.982")
     expect_equal(result$R4[7], "0.024***")
 })
@@ -43,3 +43,6 @@ test_that("outflextable", {
     print(result, preview = "html")
 })
 
+#parse_md("*R*aa^2^bb**2_cc_**") %>% mdlist2chunk() %>%
+    #flextable::as_paragraph(list_values = .)
+#str2paragraph(c("*R*^2^", "**B**~j~", "w"))
