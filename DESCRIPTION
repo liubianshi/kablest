@@ -13,13 +13,13 @@ Depends:
 Imports:
     magrittr,
     data.table,
-    knitr (>= 1.24),
-    kableExtra (>= 1.1.0),
-    flextable,
-    rmarkdown,
     purrr
 Suggests:
+    rmarkdown,
+    flextable,
     broom (>= 0.5.2),
+    knitr (>= 1.24),
+    kableExtra (>= 1.1.0),
     testthat
 Encoding: UTF-8
 LazyData: true

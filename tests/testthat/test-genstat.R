@@ -1,9 +1,9 @@
 context("get estimate stats from regslit")
 
 test_that("get estimate stats from regslit", {
-    expect_null(getstat(stat = NULL))
-    expect_null(getstat(stat = list(name = ""), l.reg, 3L))
-    expect_error(getstat(stat = list(name = "N", label = c("N1", "N2"))))
+    expect_null(genstat(stat = NULL))
+    expect_null(genstat(stat = list(name = NULL), l.reg, 3L))
+    expect_error(genstat(stat = list(name = "N", label = c("N1", "N2"))))
 
     l.reg <- local({
         ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
@@ -34,14 +34,14 @@ test_that("get estimate stats from regslit", {
                  "Firm Effects" = rep("Y", 4))  
     terms <- c("Year Effects", "Firm Effects", "test",
                "N", "*R*^2^", "Adj *R*^2^")
-    o_stat <- getstat(stat, l.reg, 3L)
+    o_stat <- genstat(stat, l.reg, 3L)
     data.table::setcolorder(o_stat, "term")
     expect_equal(o_stat$term, terms)
     expect_equal(o_stat$R1[1:3],   c("Y", "Y", ""))
     expect_equal(o_stat$R1[4:6],   c("20", "0.073", "0.022"))
 
-    stat <- list("Year Effects" = "Y")
-    o_stat <- getstat(stat, l.reg, 3L)
+    stat <- list(name = NULL, "Year Effects" = "Y")
+    o_stat <- genstat(stat, l.reg, 3L)
     expect_equal(nrow(o_stat), 1L)
     expect_equal(o_stat$R4, "Y")
 })

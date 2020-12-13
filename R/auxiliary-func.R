@@ -63,7 +63,7 @@ coef2str <- function(data, fmt) {
 
     regnames <- names(data)[purrr::map_lgl(data, is.numeric)]
     fm <- function(x, digits = NULL, l_par, r_par) {
-        y <- lbs::stformat(x, digits = digits, na.replace = "") %>% trimws()
+        y <- strformat(x, digits = digits, na.replace = "") %>% trimws()
         ifelse(y == "", "", paste0(l_par, y, r_par))
     }
     for (i in seq_along(regnames))
@@ -135,6 +135,20 @@ dfplus_row <- function(..., list = NULL, common_col = NULL) {
     combined[, -c("_ori", "_index")]
 }
 
+# dropbyname: drop vector and list element by name ----------------------------
+dropbyname <- function(x, name = NULL) {
+    names_x <- names(x)
+    if (is.null(names_x) || is.null(name)) return(x)
+    x[! names_x %in% name]
+}
+
+# keepbyname: keep subset vector and list element by name ----------------------------
+keepbyname <- function(x, name = NULL) {
+    names_x <- names(x)
+    if (is.null(names_x) || is.null(name)) return(x)
+    x[names_x %in% name]
+}
+
 # genbody: generate body data.table from estimate result ----------------------
 genbody <- function(esti, reglist, vari, star, outfmt) {
     vari <- adjvari(vari, reglist)
@@ -142,7 +156,7 @@ genbody <- function(esti, reglist, vari, star, outfmt) {
 
     l.esti <- local({
         n <- names(esti)[!purrr::map_lgl(esti, is.null)]
-        n <- n[!n %in% c("singlerow", "fun", "fun.args")]
+        n <- n[n %in% c("estimate", "std.error", "statistic", "p.value")]
         purrr::map(n, ~ getesti(.x, estilist, vari$name, esti[[.x]]))
     })
 
@@ -151,10 +165,8 @@ genbody <- function(esti, reglist, vari, star, outfmt) {
             stardf <- getesti("p.value", estilist, vari$name) %>%
                 purrr::map_dfc(genstar, star = star)
             estidf <- l.esti[[1]]
-            for (i in seq_along(stardf)) {
-                if (i == 1L) next
+            for (i in seq_along(stardf)[-1])
                 estidf[[i]] <- paste0(estidf[[i]], stardf[[i]])
-            }
             estidf
         })
     }
@@ -196,30 +208,27 @@ genestimate <- function(reglist, fun = NULL, fun.args = NULL) {
 
 # genheader: gen header list from reglist -------------------------------------
 genheader <- function(reglist, header) {
-    if (is.null(header)) return(NULL)
+    if (!"name" %in% names(header)) header$name = c("indep", "reg", "no")
+    if ("indep" %in% header$name)
+        header$indep <- purrr::map_chr(reglist, getindep)
+    if ("reg" %in% header$name)
+        header$reg   <- names(reglist)
+    if ("no" %in% header$name)
+        header$no <- paste0("(", seq_along(reglist), ")")
+    header$name <- NULL
 
-    nulltrue <- function(x, true) {
-        if (isFALSE(x)) return(NULL)
-        if (is.null(x) || isTRUE(x)) return(true)
-        x
-    }
-    header$indep %<>% nulltrue(purrr::map_chr(reglist, getindep))
-    header$regname %<>% nulltrue(names(reglist))
-    header$regno %<>% nulltrue(paste0("(", seq_along(reglist), ")"))
-
-    h <- header[!purrr::map_lgl(header, is.null)]
     format_header <- function(x, l = length(reglist)) {
-        if (!is.null(names) && all(grepl("^\\d+$", x))) 
+        if (!is.null(names(x)) && all(grepl("^\\d+$", x))) 
             x <- rep(names(x), x)
         rep_len(x, l)
     }
-    h <- lapply(h, format_header)
-    h
+
+    header[!purrr::map_lgl(header, is.null)] %>% lapply(format_header)
 }
 
 
-# gennotelist: generate notlist -----------------------------------------------
-gennotelist <- function(note, star, digits = 3L, lang = "en_US") {
+# gennote: generate notlist -----------------------------------------------
+gennote <- function(note, star, digits = 3L, lang = "en_US") {
     if (is.null(note) || isFALSE(note)) return(NULL)
     note <- if (isTRUE(note)) {
         star <- adjstar(star, "text")
@@ -241,16 +250,16 @@ getindep <- function(reg) {
 }
 
 
-# getstat: get stats from estimate result -------------------------------------
-getstat <- function(stat, reglist, digits, lang = "en_US") {
+# genstat: gen stats from estimate result -------------------------------------
+genstat <- function(stat, reglist, digits, lang = "en_US") {
     if (is.null(stat)) return(NULL)
-    stat.add <- stat[-match(c("name", "label", ""), names(stat),
-                    nomatch = length(stat) + 1)]
-
-    stat_df <- if (is.null(stat$name) || all(lbs::isempty(stat$name))) {
+    names(stat) <- complete_names(stat, c("name", "label"))
+    stat.add <- dropbyname(stat, c("name", "label", ""))
+    stat_df <- if (hasName(stat, "name") && is.null(stat$name)) {
         NULL
     } else {
-        stat$label %<>% ifthen(translate(stat$name, lang))
+        stat$name %<>% ifthen(c("N", "r2"))
+        stat$label %<>% ifthen(stat$name) %>% translate(lang)
         stopifnot(length_equal(stat$name, stat$label))
         local({
             l <- lapply(stat$name, getstat_byname, reglist, digits)
@@ -263,7 +272,7 @@ getstat <- function(stat, reglist, digits, lang = "en_US") {
     if (length(stat.add) != 0) {
         add2str <- function(x, len = 0L) {
             if (is.numeric(x))
-                x <- lbs::stformat(.x, digits = digits, na.replace = "")
+                x <- strformat(.x, digits = digits, na.replace = "")
             if (len > 0L)
                 x <- rep_len(x, len)
             x
@@ -296,7 +305,7 @@ getstat_byname <- function(statname, reglist, digits) {
         stat <- purrr::map_dbl(reglist, ~ ifthen(summary(.x)[[statname]], NA))
     }
     if (is.null(stat)) return(rep("", length(reglist)))
-    stat <- lbs::stformat(stat, digits = digits, na.replace = "")
+    stat <- strformat(stat, digits = digits, na.replace = "")
 }
 
 # genstar: gen star vector from p-value vector --------------------------------
@@ -349,6 +358,24 @@ length_equal <- function(x, y) {
     else return(FALSE)
 }
 
+# mdlist2chunk: translate parsed markdown list to flextable chunk -------------
+mdlist2chunk <- function(l) {
+    if (length(l) == 0) return(list(flextable::as_chunk("")))
+    l_normal <- l[!purrr::map_lgl(l, is.list)]
+    l_list <- l[purrr::map_lgl(l, is.list)]
+    if (length(l_normal) == 0)
+        return(c(mdlist2chunk(l[[1]]), mdlist2chunk(l[-1])))
+    if (length(l_list) != 0L) 
+        return(c(mdlist2chunk(l_normal), mdlist2chunk(l_list)))
+    if (is.null(l$s)) return(NULL) 
+    chunk <- flextable::as_chunk(l$s)
+    if (isTRUE(l$i))   chunk$italic           <- TRUE
+    if (isTRUE(l$b))   chunk$bold             <- TRUE
+    if (isTRUE(l$sup)) chunk$vertical.align   <- "superscript"
+    if (isTRUE(l$sub)) chunk$vertical.align   <- "subscript"
+    list(chunk)
+}
+
 # outtext: output result in raw textformat ------------------------------------
 outtext <- function(body, stat, ...) {
     dt <- rbind(body, stat)
@@ -357,7 +384,7 @@ outtext <- function(body, stat, ...) {
 #
 # outflextable: output result in raw flextable format -------------------------
 outflextable <- function(body, stat, header, star, caption, note, lang,
-                         header.args,  flextable.args, ...) {
+                         flextable.args, ...) {
     fpmin <- officer::fp_border(width = 1)
     fpmax <- officer::fp_border(width = 1.5)
     hline <- nrow(body)
@@ -367,7 +394,8 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
     if (!is.null(header)) {
         header <- purrr::map(header[length(header):1], ~ c("", .x))
         header[[1]][1] <- translate("variable", lang)
-        if (isTRUE(header.args$multicolumn) && isTRUE(flextable.args$empty_col)) {
+        if (isTRUE(flextable.args$merge_header) &&
+            isTRUE(flextable.args$empty_col)) {
             header_name <- insertemptycolumn(header, key_cols)
             header <- header_name[[1]]
             key_cols  <- header_name[[2]]
@@ -388,12 +416,11 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
             )
         }
     }
-
     if (!is.null(header)) {
         ft <- flextable::delete_part(ft, part = "header")
         for (h in header) {
             ft %<>% flextable::add_header_row(values = h)
-            if (isTRUE(header.args$multicolumn)) {
+            if (isTRUE(flextable.args$merge_header)) {
                 ft %<>% flextable::merge_h(i = 1, part = "header") 
                 if (!isFALSE(flextable.args$multicolumn_line)) {
                     hh <- squeeze(h)
@@ -436,6 +463,33 @@ parse_c <- function(char) {
     fmt
 }
 
+# parse_md: parse string in markdown syntax -----------------------------------
+parse_md <- function(s, syntax = c("sup", "i", "b", 'sub'), a = NULL) {
+    if (is.null(s) || is.na(s) || s == "") return(NULL)
+    if (length(syntax) == 0L) return(s)
+
+    md_syntax <- supported_md_syntax()
+    md_syntax_names <- names(md_syntax)
+    if (!all(syntax %in% md_syntax_names)) 
+        stop("Only support '", paste(md_syntax_names, collapse = ", "), "'.")
+
+    index <- purrr::map_int(syntax,
+        ~ regexpr(md_syntax[[.x]]$p, s, perl = TRUE)[[1]])
+    if (all(index == -1L))
+        return(if (is.null(a)) list(list(s = s)) else c(s = s, a))
+    syntax_match_first <- syntax[index > 0L][which.min(index[index > 0L])]
+
+    a.new <- a
+    a.new[[syntax_match_first]] <- TRUE
+    ss <- sub(md_syntax[[syntax_match_first]]$p,
+              md_syntax[[syntax_match_first]]$r, s, perl = TRUE)
+    ss <- strsplit(ss, "\t")[[1]]
+
+    c(parse_md(ss[1], syntax, a),
+      list(parse_md(ss[2], syntax, a.new)),
+      parse_md(ss[3], syntax, a))
+}
+
 # rempty: replace empty with specific value -----------------------------------
 rempty <- function(x, r, empty = NULL) {
     stopifnot(length(r) == 1L || length(r) == length(x))
@@ -444,23 +498,6 @@ rempty <- function(x, r, empty = NULL) {
     x
 }
 
-
-# translate: translate specific key words -------------------------------------
-translate <- function(x, lang = "en_US") {
-    if (lang %in% c("zh_cn", "zh_CN", "ZH_cn", "ZH_CN")) {
-        x <- gsub("^Note: $",    "注释：",     x)
-        x <- gsub("^term|vari|variable$",    "变量",     x)
-        x <- gsub("^N|obs|nobs$",            "观测数",   x)
-        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",     x)
-        x <- gsub("^ar2|AR2|adj.r.squared$", "调整*R*^2^", x)
-    } else if (lang %in% c("en_US", "en_us")) {
-        x <- gsub("^term|vari|variable$",    "Variable", x)
-        x <- gsub("^N|obs|nobs$",            "N",        x)
-        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",     x)
-        x <- gsub("^ar2|AR2|adj.r.squared$", "Adj *R*^2^", x)
-    }
-    x
-}
 
 # squeeze: squeeze vector -----------------------------------------------------
 squeeze <- function(x) {
@@ -494,62 +531,6 @@ star2sup <- function(x, symbol = "*") {
     x <- do.call(rbind, x)
     star_chunk <- flextable::as_sup(x[, 2])
     flextable::as_paragraph(x[,1], star_chunk)
-}
-
-# supported_md_syntax: currently supported syntax -----------------------------
-supported_md_syntax <- function() {
-    md <- list(
-        b   = list(p = "[*]{2}([^*]+)[*]{2}|[_]{2}([^_]+)[_]{2}", r = "\t\\1\\2\t"),
-        i   = list(p = "[_]([^_]+)[_]|[*]([^*]+)[*]",             r = "\t\\1\\2\t"),
-        sup = list(p = "\\^([^^]+)\\^",                           r = "\t\\1\t"),
-        sub = list(p = "[~]([^~]+)[~]",                           r = "\t\\1\t")
-    )
-    md
-}
-
-# parse_md: parse string in markdown syntax -----------------------------------
-parse_md <- function(s, syntax = c("sup", "i", "b", 'sub'), a = NULL) {
-    if (is.null(s) || is.na(s) || s == "") return(NULL)
-    if (length(syntax) == 0L) return(s)
-
-    md_syntax <- supported_md_syntax()
-    md_syntax_names <- names(md_syntax)
-    if (!all(syntax %in% md_syntax_names)) 
-        stop("Only support '", paste(md_syntax_names, collapse = ", "), "'.")
-
-    index <- purrr::map_int(syntax,
-        ~ regexpr(md_syntax[[.x]]$p, s, perl = TRUE)[[1]])
-    if (all(index == -1L))
-        return(if (is.null(a)) list(list(s = s)) else c(s = s, a))
-    syntax_match_first <- syntax[index > 0L][which.min(index[index > 0L])]
-
-    a.new <- a
-    a.new[[syntax_match_first]] <- TRUE
-    ss <- sub(md_syntax[[syntax_match_first]]$p,
-              md_syntax[[syntax_match_first]]$r, s, perl = TRUE)
-    ss <- strsplit(ss, "\t")[[1]]
-
-    c(parse_md(ss[1], syntax, a),
-      list(parse_md(ss[2], syntax, a.new)),
-      parse_md(ss[3], syntax, a))
-}
-
-# mdlist2chunk: translate parsed markdown list to flextable chunk -------------
-mdlist2chunk <- function(l) {
-    if (length(l) == 0) return(list(flextable::as_chunk("")))
-    l_normal <- l[!purrr::map_lgl(l, is.list)]
-    l_list <- l[purrr::map_lgl(l, is.list)]
-    if (length(l_normal) == 0)
-        return(c(mdlist2chunk(l[[1]]), mdlist2chunk(l[-1])))
-    if (length(l_list) != 0L) 
-        return(c(mdlist2chunk(l_normal), mdlist2chunk(l_list)))
-    if (is.null(l$s)) return(NULL) 
-    chunk <- flextable::as_chunk(l$s)
-    if (isTRUE(l$i))   chunk$italic           <- TRUE
-    if (isTRUE(l$b))   chunk$bold             <- TRUE
-    if (isTRUE(l$sup)) chunk$vertical.align   <- "superscript"
-    if (isTRUE(l$sub)) chunk$vertical.align   <- "subscript"
-    list(chunk)
 }
 
 # str2paragraph: translate markdown string vector to flextable paragrap -------
@@ -592,3 +573,61 @@ insertemptycolumn <- function(l, name) {
     list(l, name)
 }
 
+# supported_md_syntax: currently supported syntax -----------------------------
+supported_md_syntax <- function() {
+    md <- list(
+        b   = list(p = "[*]{2}([^*]+)[*]{2}|[_]{2}([^_]+)[_]{2}", r = "\t\\1\\2\t"),
+        i   = list(p = "[_]([^_]+)[_]|[*]([^*]+)[*]",             r = "\t\\1\\2\t"),
+        sup = list(p = "\\^([^^]+)\\^",                           r = "\t\\1\t"),
+        sub = list(p = "[~]([^~]+)[~]",                           r = "\t\\1\t")
+    )
+    md
+}
+
+# translate: translate specific key words -------------------------------------
+translate <- function(x, lang = "en_US") {
+    if (lang %in% c("zh_cn", "zh_CN", "ZH_cn", "ZH_CN")) {
+        x <- gsub("^Note: $",    "注释：",     x)
+        x <- gsub("^term|vari|variable$",    "变量",     x)
+        x <- gsub("^N|obs|nobs$",            "观测数",   x)
+        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",     x)
+        x <- gsub("^ar2|AR2|adj.r.squared$", "调整*R*^2^", x)
+    } else if (lang %in% c("en_US", "en_us")) {
+        x <- gsub("^term|vari|variable$",    "Variable", x)
+        x <- gsub("^N|obs|nobs$",            "N",        x)
+        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",     x)
+        x <- gsub("^ar2|AR2|adj.r.squared$", "Adj *R*^2^", x)
+    }
+    x
+}
+
+# strformat: format numeric vector --------------------------------------------
+strformat <- function(x, digits = 3L, nsmall = 3L, width = NULL,
+                      big.mark = ",", na.replace = "") {
+    stopifnot(is.numeric(x))
+    if (is.integer(x)) return(as.character(x))
+    one <- function(z, nsmall, width, digits, na.replace, big.mark) {
+        stopifnot(is.numeric(z) && length(z) == 1L)
+        if (is.na(z)) return(na.replace)
+        if (is.integer(z)) return(format(z, digits = 0, nsmall = 0,
+                                         width = width, big.mark = big.mark))
+        t <- abs(z)
+        n <- if (t == 0) {
+                format(z, digits = 0, nsmall = nsmall, width = width, big.mark = big.mark)
+            } else if (t < 1) {
+                format(z, nsmall = nsmall, width = width,
+                       digits = max(0, digits - as.integer(log10(1/t))),
+                       , big.mark = big.mark)
+            } else if (t < 10) {
+                format(z, nsmall = nsmall, width = width, digits = digits,
+                       big.mark = big.mark )
+            } else if (log10(t) < digits + 1) {
+                format(z, digits = digits - as.integer(log10(t)),
+                       nsmall = max(0, nsmall - as.integer(log10(t))),
+                       width = width, big.mark = big.mark)
+            } else {
+                format(z, digits = 0, width = width, big.mark = big.mark)
+            }
+    }
+    as.character(lapply(x, one, nsmall, width, digits, na.replace, big.mark))
+}

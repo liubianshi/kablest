@@ -1,4 +1,4 @@
-context("kablest estimate result")
+context("tabreg estimate result")
 
 l.reg <- local({
     ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
@@ -20,7 +20,7 @@ l.reg <- local({
 })
 
 test_that("outtext", {
-    result <- kablest(reglist = l.reg)
+    result <- tabreg(reglist = l.reg)
     expect_equal(result$term[10], "*R*^2^")
     expect_equal(result$R2[10], "0.982")
     expect_equal(result$R4[7], "0.024***")
@@ -36,11 +36,15 @@ test_that("insertemptycolumn", {
 })
 
 test_that("outflextable", {
-    result <- kablest(reglist = l.reg,
+    result <- tabreg(reglist = l.reg,
                       outfmt = "flextable",
                       header = list(c("A", "A", "B", "B"),
-                                    regname = FALSE), lang = "zh_CN")
-    print(result, preview = "html")
+                                    name = c("indep", "no")), lang = "zh_CN")
+    expect_equal(class(result$header), "complex_tabpart")
+    expect_equal(dim(result$header$dataset), c(3, 9))
+    expect_equal(class(result$footer), "complex_tabpart")
+    expect_equal(dim(result$footer$dataset), c(1, 9))
+    expect_equal(result$col_keys[c(2, 8)], c("..2", "..8"))
 })
 
 #parse_md("*R*aa^2^bb**2_cc_**") %>% mdlist2chunk() %>%

@@ -1,7 +1,7 @@
 #' Convert tidy regress model results to academic table
 #'
 #' Based on tidy tibble form regress model results converted by \code{broom}
-#'      package, \code{kablest} created an academic table including: coef or
+#'      package, \code{tabreg} created an academic table including: coef or
 #'      other similar variable provided by \code{broom::tidy}, se and/or t 
 #'      statistic, significant symbol, model observations numbers, and/or 
 #'      other model statistics provided by \code{broom:glance}. 
@@ -103,17 +103,17 @@
 #' @param kable.args parameter list which will be passed to \code{knitr::kable}
 #'      to control the display of the \code{latex} and/or \code{markdown}
 #'      format 
-#'      output. When a \code{kable.args} conflicts with the of \code{kablest},
-#'      the setting of \code{kablest} will prevail.
+#'      output. When a \code{kable.args} conflicts with the of \code{tabreg},
+#'      the setting of \code{tabreg} will prevail.
 #' @param kable.style.args parameter list which will be passed to
 #'      \code{kableExtra::kable_styling}
 #'      to control the display of the \code{latex} and/or \code{markdown} style
 #'      output. When a \code{kable.style.args} conflicts with the of
-#'      \code{kablest}, the setting of \code{kablest} will prevail.
-#' @return A kable. If \code{style = "text"}, the \code{kablest} will print
+#'      \code{tabreg}, the setting of \code{tabreg} will prevail.
+#' @return A kable. If \code{style = "text"}, the \code{tabreg} will print
 #'      the output as a \code{data.frame} and return a character \code{tibble}.
 #'      If \code{style} is \code{markdown}, \code{latex} or \code{html},
-#'      \code{kablest} will print and return a formated kable which can handled
+#'      \code{tabreg} will print and return a formated kable which can handled
 #'      by \code{kableExtra}.
 #' @importFrom magrittr `%>%`
 #' @examples
@@ -130,37 +130,36 @@
 #' glm.1 <- glm(lot1 ~ log(u), data = clotting, family = Gamma)
 #' glm.2 <- glm(lot2 ~ log(u), data = clotting, family = Gamma)
 #' l.reg <- list(lm.D9, lm.D90, glm.1, glm.2)
-#' kablest(l.reg)
-#' kablest(l.reg, coef.star= c("+.001", "*.01"))
-#' kablest(l.reg, format = "latex")
-#' kablest(l.reg, var.keep = "group.*", var.keep.method = "regex")
-#' kablest(l.reg,  var.keep = c("groupTrt", "log(u)"))
-#' kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+#' tabreg(l.reg)
+#' tabreg(l.reg, coef.star= c("+.001", "*.01"))
+#' tabreg(l.reg, format = "latex")
+#' tabreg(l.reg, var.keep = "group.*", var.keep.method = "regex")
+#' tabreg(l.reg,  var.keep = c("groupTrt", "log(u)"))
+#' tabreg(l.reg,  var.keep = c("groupTrt", "log(u)"),
 #'         var.label = list("log(u)" = "log_u"))
-#' kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+#' tabreg(l.reg,  var.keep = c("groupTrt", "log(u)"),
 #'         var.label = c("Trt", "log_u"))
-#' kablest(l.reg,  var.keep = c("groupTrt", "log(u)"),
+#' tabreg(l.reg,  var.keep = c("groupTrt", "log(u)"),
 #'         var.label = c("Trt", "log_u"),
 #'         add.lines = list(FE = rep("N", 4)))
-#' kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+#' tabreg(l.reg, var.keep = c("groupTrt", "log(u)"),
 #'         var.label = c("Trt", "log_u"),
 #'         coef.t = TRUE, bracket.t = "[]",
 #'         add.lines = list(FE = rep("N", 4)))
-#' kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+#' tabreg(l.reg, var.keep = c("groupTrt", "log(u)"),
 #'         var.label = c("Trt", "log_u"),
 #'         single.row = TRUE,
 #'         add.lines = list(FE = rep("N", 4)))
-#' kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+#' tabreg(l.reg, var.keep = c("groupTrt", "log(u)"),
 #'         var.label = c("Trt", "log_u"),
 #'         single.row = TRUE, coef.se = FALSE,
 #'         add.lines = list(FE = rep("N", 4)))
-#' kablest(l.reg, var.keep = c("groupTrt", "log(u)"),
+#' tabreg(l.reg, var.keep = c("groupTrt", "log(u)"),
 #'         var.label = c("Trt", "log_u"),
 #'         digits.se = 4L, digits.coef = 4L,
 #'         add.lines = list(FE = rep("N", 4)))
 #' @export
-kablest <- function(..., reglist = NULL, outfmt = "text",
-    path = NULL, append = FALSE,
+tabreg <- function(..., reglist = NULL, outfmt = "text",
     caption = NULL, align = NULL, lang = "en_US",
     vari = list(name = NULL, label = NULL),
     esti = list(estimate = 3L, std.error = "(3)", statistic = NULL,
@@ -168,15 +167,14 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
                 fun = NULL, fun.args = NULL),
     star = list(cut = c(0.1, 0.05, 0.01), symbol = c("*", "**", "***")),
     stat = list(name = c("N", "r2"), label = c("N", "*R*^2^")),
-    header = list(indep = TRUE, regname = TRUE, regno = TRUE),
+    header = list(name = c("indep", "reg", "no")),
     note = TRUE,
-    header.args = list(top = TRUE, multicolumn = TRUE),
-    flextable.args = list(empty_col = TRUE, multicolumn_line = TRUE),
-    kable.args = list(), kable.style.args = list()
+    flextable.args = list(empty_col = TRUE, merge_header = TRUE, multicolumn_line = TRUE),
+    kable.args = list(),
+    outfun = NULL, outfun.args = list()
 ) {
     # digits for float number
-    digits <- ifthen(as.integer(esti$estimate), 3L)
-
+    digits <- ifthen(as.integer(parse_c(esti$estimate)[2]), 3L)
     # reglist and header
     reglist <- c(list(...), if(!is.null(reglist)) reglist)
     stopifnot(length(reglist) > 0)
@@ -184,28 +182,37 @@ kablest <- function(..., reglist = NULL, outfmt = "text",
     vari <- adjvari(vari, reglist)
     star <- adjstar(star, outfmt)
     header <- genheader(reglist, header)
+    note <- gennote(note, star, digits, lang)
     body <- genbody(esti, reglist, vari, star, outfmt)
-    stat <- getstat(stat, reglist, digits, lang)
+    stat <- genstat(stat, reglist, digits, lang)
 
     # output
     out <- local({
-        outargs <- list(body = body,
-                        stat = stat,
-                        header = header,
-                        star = star,
-                        caption = caption,
-                        note = gennotelist(note, star, digits, lang),
-                        align = align,
-                        lang = lang,
-                        flextable.args = flextable.args,
-                        header.args = header.args,
-                        kable.args = kable.args,
-                        kable.style.args = kable.args)
-        do.call(paste0("out", outfmt), outargs)
+        out.args <- list(body    = body,
+                    stat    = stat,
+                    header  = header,
+                    star    = star,
+                    caption = caption,
+                    note    = note,
+                    align   = align,
+                    lang    = lang)
+        if (!is.null(outfun)) {
+            out.args$fun.args = fun.args
+            do.call(outfun, out.args)
+        } else if (exists(paste0("out", outfmt), mode = "function")) {
+            o.args <- paste0(outfmt, ".args")
+            out.args[[o.args]] <- if (exists(o.args, mode = "list")) {
+                get(o.args)
+            } else {
+                NULL
+            }
+            do.call(paste0("out", outfmt), out.args)
+        } else {
+            stop("lang out function!")
+        }
     })
 
     # export
-    if (!is.null(path)) write(out, path, append = append)
     invisible(out)
 }
 

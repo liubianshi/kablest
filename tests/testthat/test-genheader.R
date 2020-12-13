@@ -17,16 +17,17 @@ test_that("Generate header list", {
         list(lm.D9, lm.D90, glm.1, glm.2)
     })
     names(l.reg) <- paste("R", seq_along(l.reg))
-    header <- list(indep = TRUE, regname = FALSE, regno = TRUE, NULL)
+    header <- list(name = c("indep", "no"))
     expect_true(is.list(l.reg))
-    expect_equal(names(genheader(l.reg, header)), c("indep", "regno"))
+    expect_equal(names(genheader(l.reg, header)), c("indep", "no"))
+
     expect_equal(genheader(l.reg, header)$indep, c("weight", "weight", "lot1", "lot2"))
-    expect_equal(genheader(l.reg, header)$regno, c("(1)", "(2)", "(3)", "(4)"))
+    expect_equal(genheader(l.reg, header)$no, c("(1)", "(2)", "(3)", "(4)"))
     expect_equal(genheader(l.reg, list(t = "test"))$t, c("test", "test", "test", "test"))
-    expect_equal(genheader(l.reg, list(regname = paste0("R", seq_along(l.reg)), regno = FALSE, indep = FALSE)),
+    expect_equal(genheader(l.reg, list(name = NULL, regname = paste0("R", seq_along(l.reg)))),
                  list(regname = c("R1", "R2", "R3", "R4")))
-    expect_equal(genheader(l.reg, list("x", regno = T, indep = F, regname = F )),
-                 list(rep("x", 4), regno = c("(1)", "(2)", "(3)", "(4)")))
-    expect_equal(genheader(l.reg, list(test = c(c1 = 2, c2 = 3), regno = FALSE, regname = FALSE, indep = FALSE)),
+    expect_equal(genheader(l.reg, list("x", name = "no")),
+                 list(rep("x", 4), no = c("(1)", "(2)", "(3)", "(4)")))
+    expect_equal(genheader(l.reg, list(test = c(c1 = 2, c2 = 3), name = NULL)),
                  list(test = c("c1", "c1", "c2", "c2")))
 })

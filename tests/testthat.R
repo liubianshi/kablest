@@ -1,5 +1,5 @@
 library(testthat)
-library(kablest)
+library(tabreg)
 
-test_check("kablest")
+test_check("tabreg")
 

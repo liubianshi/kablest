@@ -1,7 +1,7 @@
 #' Personal use fucntion
 #'
-#' @name kablest-package
-#' @aliases kablest
+#' @name tagreg-package
+#' @aliases tabreg 
 #' @docType package
 NULL
 
