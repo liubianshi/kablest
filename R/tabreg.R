@@ -159,8 +159,7 @@
 #'         digits.se = 4L, digits.coef = 4L,
 #'         add.lines = list(FE = rep("N", 4)))
 #' @export
-tabreg <- function(..., reglist = NULL, outfmt = "text",
-    caption = NULL, align = NULL, lang = "en_US",
+tabreg <- function(reglist, caption = NULL, outfmt = "text",
     vari = list(name = NULL, label = NULL),
     esti = list(estimate = 3L, std.error = "(3)", statistic = NULL,
                 p.value = NULL, singlerow = FALSE,
@@ -169,51 +168,39 @@ tabreg <- function(..., reglist = NULL, outfmt = "text",
     stat = list(name = c("N", "r2"), label = c("N", "*R*^2^")),
     header = list(name = c("indep", "reg", "no")),
     note = TRUE,
-    flextable.args = list(empty_col = TRUE, merge_header = TRUE, multicolumn_line = TRUE),
-    kable.args = list(),
-    outfun = NULL, outfun.args = list()
+    outfun = NULL, outargs = list(), outstyle = NULL
 ) {
-    # digits for float number
-    digits <- ifthen(as.integer(parse_c(esti$estimate)[2]), 3L)
-    # reglist and header
-    reglist <- c(list(...), if(!is.null(reglist)) reglist)
-    stopifnot(length(reglist) > 0)
+    # adjust parameter
     names(reglist) %<>% ifthen(paste0("R", seq_along(reglist)))
-    vari <- adjvari(vari, reglist)
-    star <- adjstar(star, outfmt)
+    digits <- ifthen(as.integer(parse_c(esti$estimate)[2]), 3L)
+    vari   <- adjvari(vari, reglist)
+    star   <- adjstar(star, outfmt)
+    lang   <- ifthen(outargs$lang,
+                     substr(Sys.getenv("LANG", "en_US.utf8"), 1, 5))
+
+    # gen data
+    body   <- genbody(esti, reglist, vari, star, outfmt)
+    stat   <- genstat(stat, reglist, digits, lang)
     header <- genheader(reglist, header)
-    note <- gennote(note, star, digits, lang)
-    body <- genbody(esti, reglist, vari, star, outfmt)
-    stat <- genstat(stat, reglist, digits, lang)
+    note   <- gennote(note, star, digits, lang)
+    style  <- genstyle(outfmt, outargs, outstyle)
 
     # output
     out <- local({
         out.args <- list(body    = body,
-                    stat    = stat,
-                    header  = header,
-                    star    = star,
-                    caption = caption,
-                    note    = note,
-                    align   = align,
-                    lang    = lang)
-        if (!is.null(outfun)) {
-            out.args$fun.args = fun.args
-            do.call(outfun, out.args)
-        } else if (exists(paste0("out", outfmt), mode = "function")) {
-            o.args <- paste0(outfmt, ".args")
-            out.args[[o.args]] <- if (exists(o.args, mode = "list")) {
-                get(o.args)
-            } else {
-                NULL
-            }
-            do.call(paste0("out", outfmt), out.args)
-        } else {
-            stop("lang out function!")
-        }
+                         stat    = stat,
+                         header  = header,
+                         star    = star,
+                         caption = caption,
+                         note    = note,
+                         lang    = lang,
+                         style   = style)
+        if (is.null(outfun)) outfun <- paste0("out", outfmt)
+        do.call(outfun, out.args)
     })
 
     # export
-    invisible(out)
+    out
 }
 
 

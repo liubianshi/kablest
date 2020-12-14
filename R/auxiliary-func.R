@@ -325,6 +325,31 @@ genstar <- function(pvalue, star) {
     star
 }
 
+# genstyle: Constuct style list for output function ---------------------------
+genstyle <- function(fmt, arglist, style) {
+    switch(fmt,
+        flextable = genstyle_flextable(arglist, style),
+        genstyle_default(arglist, style)
+    )
+}
+
+genstyle_default <- function(arglist, style) {
+    style %<>% ifthen(list())
+    for (n in names(arglist))
+        style[[n]] <- arglist[[n]]
+    style
+}
+
+genstyle_flextable <- function(arglist, style) {
+    style <- genstyle_default(arglist, style)
+    style$merge_header     %<>% ifthen(TRUE)
+    style$multicolumn_line %<>% ifthen(TRUE)
+    style$empty_col        %<>% ifthen(TRUE)
+    style$fpmin            %<>% ifthen(officer::fp_border(width = 1))
+    style$fpmax            %<>% ifthen(officer::fp_border(width = 1.5))
+    style
+}
+
 # getesti: get estimate result ------------------------------------
 getesti <- function(coefname, estilist, vars, fmt = NULL)  {
     stopifnot(length(coefname) == 1L)
@@ -351,6 +376,12 @@ ifthen <- function(x, then, otherwise = x, fun = is.null) {
     stopifnot(isTRUE(result) || isFALSE(result))
     if (result) then else otherwise
 }
+
+# `%//%`: replace NULL with default value -------------------------------------
+`%//%` <- function(x, then) {
+    if (is.null(x)) then else x 
+}
+
 
 # length_equal: whether two object's length is equal --------------------------
 length_equal <- function(x, y) {
@@ -381,12 +412,9 @@ outtext <- function(body, stat, ...) {
     dt <- rbind(body, stat)
 }
 
-#
 # outflextable: output result in raw flextable format -------------------------
 outflextable <- function(body, stat, header, star, caption, note, lang,
-                         flextable.args, ...) {
-    fpmin <- officer::fp_border(width = 1)
-    fpmax <- officer::fp_border(width = 1.5)
+                         style, ...) {
     hline <- nrow(body)
     key_cols <- names(body)
     body <- rbind(body, stat)
@@ -394,8 +422,7 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
     if (!is.null(header)) {
         header <- purrr::map(header[length(header):1], ~ c("", .x))
         header[[1]][1] <- translate("variable", lang)
-        if (isTRUE(flextable.args$merge_header) &&
-            isTRUE(flextable.args$empty_col)) {
+        if (isTRUE(style$merge_header) && isTRUE(style$empty_col)) {
             header_name <- insertemptycolumn(header, key_cols)
             header <- header_name[[1]]
             key_cols  <- header_name[[2]]
@@ -420,13 +447,13 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
         ft <- flextable::delete_part(ft, part = "header")
         for (h in header) {
             ft %<>% flextable::add_header_row(values = h)
-            if (isTRUE(flextable.args$merge_header)) {
+            if (isTRUE(style$merge_header)) {
                 ft %<>% flextable::merge_h(i = 1, part = "header") 
-                if (!isFALSE(flextable.args$multicolumn_line)) {
+                if (!isFALSE(style$multicolumn_line)) {
                     hh <- squeeze(h)
                     hh <- cumsum(hh)[which(hh > 1L) - 1] + 1
                     ft %<>% flextable::hline(i = 1, j = hh,
-                        border = fpmin, part = "header")
+                        border = style$fpmin, part = "header")
                     rm(hh)
                 }
             }
@@ -439,9 +466,9 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
         ft %<>% flextable::footnote(value = note, ref_symbols = "" )
     }
 
-    ft %<>% flextable::hline_top(border = fpmax, part = "header") %>%
-        flextable::hline_bottom(border = fpmin, part = "header") %>%
-        flextable::hline(i = hline, border = fpmin) %>%
+    ft %<>% flextable::hline_top(border = style$fpmax, part = "header") %>%
+        flextable::hline_bottom(border = style$fpmin, part = "header") %>%
+        flextable::hline(i = hline, border = style$fpmin) %>%
         flextable::autofit()
     ft
 }

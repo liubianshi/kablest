@@ -37,9 +37,10 @@ test_that("insertemptycolumn", {
 
 test_that("outflextable", {
     result <- tabreg(reglist = l.reg,
-                      outfmt = "flextable",
-                      header = list(c("A", "A", "B", "B"),
-                                    name = c("indep", "no")), lang = "zh_CN")
+                     outfmt = "flextable",
+                     header = list(c("A", "A", "B", "B"),
+                                    name = c("indep", "no")))
+    #print(str(result, max.level = 2))
     expect_equal(class(result$header), "complex_tabpart")
     expect_equal(dim(result$header$dataset), c(3, 9))
     expect_equal(class(result$footer), "complex_tabpart")
