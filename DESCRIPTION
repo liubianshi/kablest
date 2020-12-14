@@ -6,7 +6,14 @@ Authors@R:
            family = "Luo",
            role = c("aut", "cre"),
            email = "liu.bian.shi@gmail.com")
-Description: Do not know what to write for now.
+Description: Convert regress model results to a `data.frame`,
+    `kable`, `flextable`, or other similar object. The output object can
+    be printed directly to pdf, html or docx file. `tabreg` provides
+    some common settings. The output object can be further precessed,
+    such as adding lines and footnote, merging cells, adjusting
+    output format, etc. In additional, the way of procesing model
+    results and output format can also be customised.
+
 License: GPL-3
 Depends:
     R (>= 3.6.1)

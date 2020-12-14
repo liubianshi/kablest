@@ -1,28 +1,36 @@
-#' Convert tidy regress model results to academic table
+#' Tabulating Regresssion for Report and Further Processing
 #'
-#' Based on tidy tibble form regress model results converted by \code{broom}
-#'      package, \code{tabreg} created an academic table including: coef or
-#'      other similar variable provided by \code{broom::tidy}, se and/or t 
-#'      statistic, significant symbol, model observations numbers, and/or 
-#'      other model statistics provided by \code{broom:glance}. 
+#' Convert regress model results to a `data.frame`, `kable`, `flextable`,
+#' or other similar object. The output object can be printed directly to pdf,
+#' html or docx file. `tabreg` provides some common settings.
+#' The output object can be further precessed, such as adding lines and
+#' footnote, merging cells, adjusting output format, etc. In additional,
+#' the way of procesing model results and output format can also be customised.
 #'
-#' @param reg.list a list of regression results. Regresssion model needs to
-#'      be handled by \code{broom} package.
-#' @param format a string for output format, which can be \code{text}(default)
-#'      \code{markdown} or \code{latex}.
-#' @param path Path or connection to write to.     
-#' @param append If `FALSE`, will overwrite existing file. If `TRUE`, will
-#'      append to existing file. In both cases, if file does not exist a
-#'      new file is created.
+#' @param reglist a list of regression results.
 #' @param caption the table caption.
-#' @param label The table reference label. By default, the label is obtained
-#'      from ‘knitr::opts_current$get('label')’.
-#' @param align Column alignment: a character vector consisting of \code{l} 
-#'      (left), \code{c} (center) and/or \code{r} (right). By default or
-#'      if \code{align = NULL}, numeric columns are right-aligned, and
-#'      other columns are left-aligned. 
-#' @param escape Boolean; whether to escape special characters when producing
-#'      HTML or LaTeX tables.
+#' @param outfmt a string for output format, which can be `text`(default),
+#'      `kable`, `flextable`, `markdown`, or `pandoc`.
+#' @param vari a named list indicating variable name and label. If `name` is `NULL`,
+#'      all regressors are used. If `label` is `NULL`, variable names are used.
+#'      `name` needed to be a character vector, while `label` can be a character
+#'      vector or named list. If `label` is a vector, the length must equal 
+#'      to the number of uesd variables.
+#' @param esti a named list indicating which data to extract and in what
+#'      way to present them.
+
+        `estimate`: an interger number 
+        indicating
+
+
+
+
+
+
+
+
+
+#'
 #' @param note the table note, by default or if \code{note = NULL}, note is
 #'      the meaning of significant symbol.
 #' @param LANG the language used to automatically generate default names 
