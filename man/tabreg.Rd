@@ -2,15 +2,12 @@
 % Please edit documentation in R/tabreg.R
 \name{tabreg}
 \alias{tabreg}
-\title{Convert tidy regress model results to academic table}
+\title{Tabulating Regresssion for Report and Further Processing}
 \usage{
 tabreg(
-  ...,
-  reglist = NULL,
-  outfmt = "text",
+  reglist,
   caption = NULL,
-  align = NULL,
-  lang = "en_US",
+  outfmt = "text",
   vari = list(name = NULL, label = NULL),
   esti = list(estimate = 3L, std.error = "(3)", statistic = NULL, p.value = NULL,
     singlerow = FALSE, fun = NULL, fun.args = NULL),
@@ -18,176 +15,35 @@ tabreg(
   stat = list(name = c("N", "r2"), label = c("N", "*R*^2^")),
   header = list(name = c("indep", "reg", "no")),
   note = TRUE,
-  flextable.args = list(empty_col = TRUE, merge_header = TRUE, multicolumn_line = TRUE),
-  kable.args = list(),
   outfun = NULL,
-  outfun.args = list()
+  outargs = list(),
+  outstyle = NULL
 )
 }
 \arguments{
+\item{reglist}{a list of regression results.}
+
 \item{caption}{the table caption.}
 
-\item{align}{Column alignment: a character vector consisting of \code{l}
-(left), \code{c} (center) and/or \code{r} (right). By default or
-if \code{align = NULL}, numeric columns are right-aligned, and
-other columns are left-aligned.}
+\item{outfmt}{a string for output format, which can be \code{text}(default),
+\code{kable}, \code{flextable}, \code{markdown}, or \code{pandoc}.}
 
-\item{note}{the table note, by default or if \code{note = NULL}, note is
-the meaning of significant symbol.}
+\item{vari}{a named list indicating variable name and label. If \code{name} is \code{NULL},
+all regressors are used. If \code{label} is \code{NULL}, variable names are used.
+\code{name} needed to be a character vector, while \code{label} can be a character
+vector or named list. If \code{label} is a vector, the length must equal
+to the number of uesd variables.}
 
-\item{kable.args}{parameter list which will be passed to \code{knitr::kable}
-to control the display of the \code{latex} and/or \code{markdown}
-format
-output. When a \code{kable.args} conflicts with the of \code{tabreg},
-the setting of \code{tabreg} will prevail.}
-
-\item{reg.list}{a list of regression results. Regresssion model needs to
-be handled by \code{broom} package.}
-
-\item{format}{a string for output format, which can be \code{text}(default)
-\code{markdown} or \code{latex}.}
-
-\item{path}{Path or connection to write to.}
-
-\item{append}{If \code{FALSE}, will overwrite existing file. If \code{TRUE}, will
-append to existing file. In both cases, if file does not exist a
-new file is created.}
-
-\item{label}{The table reference label. By default, the label is obtained
-from ‘knitr::opts_current$get('label')’.}
-
-\item{escape}{Boolean; whether to escape special characters when producing
-HTML or LaTeX tables.}
-
-\item{LANG}{the language used to automatically generate default names}
-
-\item{column.name}{a string vector for column names of output kabel.
-by default or if \code{column.name = NULL}, the column names if
-regression number.}
-
-\item{var.drop}{a string vector for variables needed to drop out.}
-
-\item{var.drop.method}{\code{exact} (default) or \code{regex}; the
-method used to match string.}
-
-\item{var.keep}{a string vector for variables needed to keep.}
-
-\item{var.keep.method}{\code{exact} (default) or \code{regex}; the
-method used to match string.}
-
-\item{var.order}{a variable name vector for sort variables.}
-
-\item{var.order.method}{\code{exact} (default) or \code{regex}; the
-method used to match string.}
-
-\item{var.label}{a string vector or a list. If \code{var.label = NULL},
-using varname; if \code{var.label} is a string vector, its length
-and order must consistent with the remaining variables; if
-\code{var.label} is a list, element name must in remainning variables.}
-
-\item{single.row}{T/F, whether to display \code{coef}, \code{se} and \code{t}
-in one line.}
-
-\item{coef.alter}{a string; by the default or \code{coef.alter = NULL}, the
-output kable will display \code{coef} first. Otherwise, the variable
-corresponding to the string will be displayed. The string must be a
-variable of \code{broom::tidy} output.}
-
-\item{coef.se}{T/F; whether display \code{se} (standard error). The default
-is \code{TRUE}.}
-
-\item{coef.t}{T/F; whether display \code{t} (t or z statistic). The default
-is \code{FALSE}.}
-
-\item{coef.p}{T/F; whether display \code{p} (p-value). The default
-is \code{FALSE}.}
-
-\item{coef.star}{a string vector that satisifies a specific format. The
-element needed to be match by patten \code{"^([^.]+)\\.([0-9]+)$"}.
-If \code{coef.star = NULL}, the \code{coef.star} will not be displayed.}
-
-\item{digits.coef}{the maximum number of digits to the right of
-the decimal point}
-
-\item{digits.se}{the maximum number of digits to the right of
-the decimal point}
-
-\item{digits.t}{the maximum number of digits to the right of
-the decimal point}
-
-\item{bracket.se}{the bracket surround the \code{se}}
-
-\item{bracket.t}{the bracket surround the \code{t}}
-
-\item{bracket.p}{the bracket surround the \code{p}}
-
-\item{stat.obs}{T/N; wheter to display observation number}
-
-\item{stat.r2}{T/N; wheter to display r.squared}
-
-\item{stat.ar2}{T/N; wheter to display adjusted r.squared}
-
-\item{stat.other}{T/N; wheter to display other statistics, which must be
-contained in \code{broom::glance} output.}
-
-\item{stat.label}{a string vector of list. If it is a string vector, the
-length and order must be identical to remaining \code{stat}; if it is
-a list, the element name must be a remaining \code{stat}.}
-
-\item{add.lines}{a list of vectors (one vector per line) containing
-additional lines to be included in the table. Each element name wil be
-treated as a \code{stat}. Each element of the listed vectors will be
-put into a separate column. The length each listed vectors must be
-equal to the length of \code{reg.list}.}
-
-\item{header.model}{T/F, whether to display the regression model.}
-
-\item{header.model.args}{parameter list, which will be passed to
-\code{kableExtra::add_header_above}.}
-
-\item{header.dependent}{T/F, whether to display the regression dependent
-variable. The default is \code{FALSE}. Currently the function to get
-the dependent variable is not muture, pluse use it wich caution.}
-
-\item{header.dependent.args}{parameter list, which will be passed to
-\code{kableExtra::add_header_above}.}
-
-\item{header.number}{T/F, whether to display the regression number. The
-default is \code{FALSE}, because the default \code{column.namel} will
-display regression number. Consider turning this option on after
-setting \code{column.namel} to other.}
-
-\item{header.number.args}{parameter list, which will be passed to
-\code{kableExtra::add_header_above}.}
-
-\item{header.add.args}{parameter list, which will be passed to
-\code{kableExtra::add_header_above}. When \code{header.model.args},
-\code{header.dependent.args} and/or \code{header.number.args} is
-\code{list()}, these parameter will use \code{header.add.args} as
-default.}
-
-\item{multicolumn}{T/N; whether to merge header cells when the value of
-adjacent column are the same.}
-
-\item{kable.style.args}{parameter list which will be passed to
-\code{kableExtra::kable_styling}
-to control the display of the \code{latex} and/or \code{markdown} style
-output. When a \code{kable.style.args} conflicts with the of
-\code{tabreg}, the setting of \code{tabreg} will prevail.}
-}
-\value{
-A kable. If \code{style = "text"}, the \code{tabreg} will print
-the output as a \code{data.frame} and return a character \code{tibble}.
-If \code{style} is \code{markdown}, \code{latex} or \code{html},
-\code{tabreg} will print and return a formated kable which can handled
-by \code{kableExtra}.
+\item{esti}{a named list indicating which data to extract and in what
+way to present them.}
 }
 \description{
-Based on tidy tibble form regress model results converted by \code{broom}
-package, \code{tabreg} created an academic table including: coef or
-other similar variable provided by \code{broom::tidy}, se and/or t
-statistic, significant symbol, model observations numbers, and/or
-other model statistics provided by \code{broom:glance}.
+Convert regress model results to a \code{data.frame}, \code{kable}, \code{flextable},
+or other similar object. The output object can be printed directly to pdf,
+html or docx file. \code{tabreg} provides some common settings.
+The output object can be further precessed, such as adding lines and
+footnote, merging cells, adjusting output format, etc. In additional,
+the way of procesing model results and output format can also be customised.
 }
 \examples{
 ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
@@ -204,31 +60,4 @@ glm.1 <- glm(lot1 ~ log(u), data = clotting, family = Gamma)
 glm.2 <- glm(lot2 ~ log(u), data = clotting, family = Gamma)
 l.reg <- list(lm.D9, lm.D90, glm.1, glm.2)
 tabreg(l.reg)
-tabreg(l.reg, coef.star= c("+.001", "*.01"))
-tabreg(l.reg, format = "latex")
-tabreg(l.reg, var.keep = "group.*", var.keep.method = "regex")
-tabreg(l.reg,  var.keep = c("groupTrt", "log(u)"))
-tabreg(l.reg,  var.keep = c("groupTrt", "log(u)"),
-        var.label = list("log(u)" = "log_u"))
-tabreg(l.reg,  var.keep = c("groupTrt", "log(u)"),
-        var.label = c("Trt", "log_u"))
-tabreg(l.reg,  var.keep = c("groupTrt", "log(u)"),
-        var.label = c("Trt", "log_u"),
-        add.lines = list(FE = rep("N", 4)))
-tabreg(l.reg, var.keep = c("groupTrt", "log(u)"),
-        var.label = c("Trt", "log_u"),
-        coef.t = TRUE, bracket.t = "[]",
-        add.lines = list(FE = rep("N", 4)))
-tabreg(l.reg, var.keep = c("groupTrt", "log(u)"),
-        var.label = c("Trt", "log_u"),
-        single.row = TRUE,
-        add.lines = list(FE = rep("N", 4)))
-tabreg(l.reg, var.keep = c("groupTrt", "log(u)"),
-        var.label = c("Trt", "log_u"),
-        single.row = TRUE, coef.se = FALSE,
-        add.lines = list(FE = rep("N", 4)))
-tabreg(l.reg, var.keep = c("groupTrt", "log(u)"),
-        var.label = c("Trt", "log_u"),
-        digits.se = 4L, digits.coef = 4L,
-        add.lines = list(FE = rep("N", 4)))
 }

@@ -27,7 +27,7 @@ adjstar <- function(star, outfmt = "text") {
 adjvari <- function(vari, reglist) {
     vari %<>% ifthen(list(name = NULL, label = NULL))
     names(vari) <- complete_names(vari, c("name", "label"))
-    vars <- purrr::map(reglist, ~ names(.x$coefficients)) %>%
+    vars <- lapply(reglist, getindepvars) %>%
         purrr::flatten_chr() %>%
         unique()
     vari$name %<>% ifthen(vars)
@@ -208,11 +208,12 @@ genestimate <- function(reglist, fun = NULL, fun.args = NULL) {
 
 # genheader: gen header list from reglist -------------------------------------
 genheader <- function(reglist, header) {
-    if (!"name" %in% names(header)) header$name = c("indep", "reg", "no")
+    if (!"name" %in% names(header))
+        header$name = c("indep", "reg", "no")
     if ("indep" %in% header$name)
-        header$indep <- purrr::map_chr(reglist, getindep)
+        header$indep <- purrr::map_chr(reglist, getdepvar)
     if ("reg" %in% header$name)
-        header$reg   <- names(reglist)
+        header$reg <- names(reglist)
     if ("no" %in% header$name)
         header$no <- paste0("(", seq_along(reglist), ")")
     header$name <- NULL
@@ -243,12 +244,30 @@ gennote <- function(note, star, digits = 3L, lang = "en_US") {
     note.list
 }
 
-# getindep: get independent variable name form reg ----------------------------
-getindep <- function(reg) {
-    indep <- names(reg$model)[1]
-    indep
+# getdepvar: get dependent variable name form reg ----------------------------
+getdepvar <- function(reg) {
+    model <- reg$model
+    stopifnot(!is.null(model))
+    while (inherits(model, "call") || inherits(model, "formula")) {
+        model <- model[[2]]
+    }
+    depvar <- if (inherits(model, "data.frame")) {
+        names(reg$model)[1]
+    } else if (inherits(model, "name")) {
+        as.character(model)
+    } else {
+        stop("Can not get regression's independent variable")
+    }
+    depvar
 }
 
+
+# getindepvars: get all variable names from reglist -----------------------------------------
+getindepvars <- function(reg) {
+    depvars <- rownames(summary(reg)$coefficients)
+    stopifnot(!is.null(depvars))
+    depvars
+}
 
 # genstat: gen stats from estimate result -------------------------------------
 genstat <- function(stat, reglist, digits, lang = "en_US") {

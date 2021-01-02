@@ -13,7 +13,6 @@ Description: Convert regress model results to a `data.frame`,
     such as adding lines and footnote, merging cells, adjusting
     output format, etc. In additional, the way of procesing model
     results and output format can also be customised.
-
 License: GPL-3
 Depends:
     R (>= 3.6.1)

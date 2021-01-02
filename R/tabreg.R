@@ -18,7 +18,6 @@
 #'      to the number of uesd variables.
 #' @param esti a named list indicating which data to extract and in what
 #'      way to present them.
-#' @importFrom magrittr `%>%`
 #' @examples
 #' ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
 #' trt <- c(4.81,4.17,4.41,3.59,5.87,3.83,6.03,4.89,4.32,4.69)
