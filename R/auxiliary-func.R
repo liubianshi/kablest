@@ -209,9 +209,9 @@ genestimate <- function(reglist, fun = NULL, fun.args = NULL) {
 # genheader: gen header list from reglist -------------------------------------
 genheader <- function(reglist, header) {
     if (!"name" %in% names(header))
-        header$name = c("indep", "reg", "no")
-    if ("indep" %in% header$name)
-        header$indep <- purrr::map_chr(reglist, getdepvar)
+        header$name = c("dep", "reg", "no")
+    if ("dep" %in% header$name)
+        header$dep <- purrr::map_chr(reglist, getdepvar)
     if ("reg" %in% header$name)
         header$reg <- names(reglist)
     if ("no" %in% header$name)

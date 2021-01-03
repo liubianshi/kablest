@@ -34,14 +34,15 @@
 #' l.reg <- list(lm.D9, lm.D90, glm.1, glm.2)
 #' tabreg(l.reg)
 #' @export
-tabreg <- function(reglist, caption = NULL, outfmt = "text",
+tabreg <- function(
+    reglist, caption = NULL, outfmt = "text",
     vari = list(name = NULL, label = NULL),
     esti = list(estimate = 3L, std.error = "(3)", statistic = NULL,
                 p.value = NULL, singlerow = FALSE,
                 fun = NULL, fun.args = NULL),
     star = list(cut = c(0.1, 0.05, 0.01), symbol = c("*", "**", "***")),
     stat = list(name = c("N", "r2"), label = c("N", "*R*^2^")),
-    header = list(name = c("indep", "reg", "no")),
+    header = list(name = c("dep", "reg", "no")),
     note = TRUE,
     outfun = NULL, outargs = list(), outstyle = NULL
 ) {
