@@ -262,11 +262,16 @@ getdepvar <- function(reg) {
 }
 
 
-# getindepvars: get all variable names from reglist -----------------------------------------
+# getindepvars: get all variable names from reglist ---------------------------
 getindepvars <- function(reg) {
     depvars <- rownames(summary(reg)$coefficients)
     stopifnot(!is.null(depvars))
     depvars
+}
+
+# getobsnumber: get observation number from regression model ------------------
+getobsnumber <- function(reg) {
+    ifthen(reg$N, length(reg$residuals))
 }
 
 # genstat: gen stats from estimate result -------------------------------------
@@ -319,7 +324,7 @@ getstat_byname <- function(statname, reglist, digits) {
     stopifnot(length(reglist) > 0)
 
     if (statname == "nobs") {
-        stat <- purrr::map_int(reglist, ~ ifthen(nrow(.x$model), NA))
+        stat <- purrr::map_int(reglist, ~ ifthen(getobsnumber(.x), NA))
     } else {
         stat <- purrr::map_dbl(reglist, ~ ifthen(summary(.x)[[statname]], NA))
     }
