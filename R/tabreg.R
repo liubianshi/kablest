@@ -34,8 +34,7 @@
 #' l.reg <- list(lm.D9, lm.D90, glm.1, glm.2)
 #' tabreg(l.reg)
 #' @export
-tabreg <- function(
-    reglist, caption = NULL, outfmt = "text",
+tabreg <- function(..., reglist = NULL, caption = NULL, outfmt = "text",
     vari = list(name = NULL, label = NULL),
     esti = list(estimate = 3L, std.error = "(3)", statistic = NULL,
                 p.value = NULL, singlerow = FALSE,
@@ -47,19 +46,18 @@ tabreg <- function(
     outfun = NULL, outargs = list(), outstyle = NULL
 ) {
     # adjust parameter
-    names(reglist) %<>% ifthen(paste0("R", seq_along(reglist)))
-    digits <- ifthen(as.integer(parse_c(esti$estimate)[2]), 3L)
-    vari   <- adjvari(vari, reglist)
-    star   <- adjstar(star, outfmt)
-    lang   <- ifthen(outargs$lang,
-                     substr(Sys.getenv("LANG", "en_US.utf8"), 1, 5))
+    reglist <- genreglist(c(list(...), list(reglist)))
+    digits  <- ifthen(as.integer(parse_c(esti$estimate)[2]), 3L)
+    vari    <- adjvari(vari, reglist)
+    star    <- adjstar(star, outfmt)
+    lang    <- ifthen(outargs$lang, substr(Sys.getenv("LANG", "en_US.utf8"), 1, 5))
 
     # gen data
-    body   <- genbody(esti, reglist, vari, star, outfmt)
-    stat   <- genstat(stat, reglist, digits, lang)
-    header <- genheader(reglist, header)
-    note   <- gennote(note, star, digits, lang)
-    style  <- genstyle(outfmt, outargs, outstyle)
+    body    <- genbody(esti, reglist, vari, star, outfmt)
+    stat    <- genstat(stat, reglist, digits, lang)
+    header  <- genheader(reglist, header)
+    note    <- gennote(note, star, digits, lang)
+    style   <- genstyle(outfmt, outargs, outstyle)
 
     # output
     out <- local({

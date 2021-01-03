@@ -17,11 +17,11 @@ test_that("Generate header list", {
         list(lm.D9, lm.D90, glm.1, glm.2)
     })
     names(l.reg) <- paste("R", seq_along(l.reg))
-    header <- list(name = c("indep", "no"))
+    header <- list(name = c("dep", "no"))
     expect_true(is.list(l.reg))
-    expect_equal(names(genheader(l.reg, header)), c("indep", "no"))
+    expect_equal(names(genheader(l.reg, header)), c("dep", "no"))
 
-    expect_equal(genheader(l.reg, header)$indep, c("weight", "weight", "lot1", "lot2"))
+    expect_equal(genheader(l.reg, header)$dep, c("weight", "weight", "lot1", "lot2"))
     expect_equal(genheader(l.reg, header)$no, c("(1)", "(2)", "(3)", "(4)"))
     expect_equal(genheader(l.reg, list(t = "test"))$t, c("test", "test", "test", "test"))
     expect_equal(genheader(l.reg, list(name = NULL, regname = paste0("R", seq_along(l.reg)))),

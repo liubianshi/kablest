@@ -18,9 +18,8 @@ l.reg <- local({
     names(l) <- paste0("R", seq_along(l))
     l
 })
-
 test_that("outtext", {
-    result <- tabreg(reglist = l.reg)
+    result <- tabreg(l.reg[[1]], reglist = l.reg[2:4])
     expect_equal(result$term[10], "*R*^2^")
     expect_equal(result$R2[10], "0.982")
     expect_equal(result$R4[7], "0.024***")
@@ -36,10 +35,9 @@ test_that("insertemptycolumn", {
 })
 
 test_that("outflextable", {
-    result <- tabreg(reglist = l.reg,
-                     outfmt = "flextable",
+    result <- tabreg(l.reg, outfmt = "flextable",
                      header = list(c("A", "A", "B", "B"),
-                                    name = c("indep", "no")))
+                                    name = c("dep", "no")))
     #print(str(result, max.level = 2))
     expect_equal(class(result$header), "complex_tabpart")
     expect_equal(dim(result$header$dataset), c(3, 9))

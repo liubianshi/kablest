@@ -349,6 +349,30 @@ genstar <- function(pvalue, star) {
     star
 }
 
+# genreglist: generate regression list ----------------------------------------
+genreglist <- function(l) {
+    names_l <- ifthen(names(l), rep("", length(l)))
+    r <- list()
+    n <- c()
+
+    while (length(l) != 0) {
+        reg <- shift(l)
+        name <- shift(names_l)
+        if (is.null(reg)) next
+        if (inherits(reg, "list")) {
+            r <- c(r, reg)
+            push(n, ifthen(names(reg), rep("", length(reg))))
+        } else {
+            push(r, reg)
+            push(n, name)
+        }
+    }
+
+    if (length(r) == 0) stop("Didn't setting regression!")
+    names(r) <- ifelse(n == "", paste0("R", seq_along(r)), n)
+    r
+}
+
 # genstyle: Constuct style list for output function ---------------------------
 genstyle <- function(fmt, arglist, style) {
     switch(fmt,
@@ -541,6 +565,17 @@ parse_md <- function(s, syntax = c("sup", "i", "b", 'sub'), a = NULL) {
       parse_md(ss[3], syntax, a))
 }
 
+# push: perl-stly push --------------------------------------------------------
+push <- function(x, values) {
+    # From:
+    #   mpettis/push-pop-shift-unshift.R
+    #   https://gist.github.com/mpettis/b7bfeff282e3b052684f
+    outer_x <- as.character(substitute(x))
+    if (inherits(x, "list")) values <- list(values)
+    assign(outer_x, c(x, values), parent.frame())
+    invisible(get(outer_x, parent.frame()))
+}
+
 # rempty: replace empty with specific value -----------------------------------
 rempty <- function(x, r, empty = NULL) {
     stopifnot(length(r) == 1L || length(r) == length(x))
@@ -549,6 +584,20 @@ rempty <- function(x, r, empty = NULL) {
     x
 }
 
+# shift: perl style shift -----------------------------------------------------
+shift <- function(x, drop = TRUE) {
+    # Inspired by:
+    #   mpettis/push-pop-shift-unshift.R
+    #   https://gist.github.com/mpettis/b7bfeff282e3b052684f
+    if (length(x) == 0) return(NA)
+    shiftret <- if (inherits(x, "list") && isTRUE(drop)) {
+        x[[1]]
+    } else {
+        x[1, drop = drop]
+    }
+    assign(as.character(substitute(x)), x[-1], parent.frame())
+    return(shiftret)
+}
 
 # squeeze: squeeze vector -----------------------------------------------------
 squeeze <- function(x) {
