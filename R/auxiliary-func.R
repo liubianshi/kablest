@@ -1,3 +1,13 @@
+# adjalign: adjust parameter align --------------------------------------------
+adjalign <- function(align, length) {
+    if (is.null(align)) return(c("l", rep("c", length - 1)))
+    if (length(align) == 1L) {
+        align <- strsplit(align, "")[[1]]
+    }
+    stopifnot(all(align %in% c("l", "c", "r")))
+    rep_len(align, length)
+}
+
 # adjstar: adjust star vetor --------------------------------------------------
 adjstar <- function(star, outfmt = "text") {
     if (is.null(star)) return(NULL)
@@ -208,8 +218,7 @@ genestimate <- function(reglist, fun = NULL, fun.args = NULL) {
 
 # genheader: gen header list from reglist -------------------------------------
 genheader <- function(reglist, header) {
-    if (!"name" %in% names(header))
-        header$name = c("dep", "reg", "no")
+    if (is.null(header)) return(NULL)
     if ("dep" %in% header$name)
         header$dep <- purrr::map_chr(reglist, getdepvar)
     if ("reg" %in% header$name)
@@ -231,7 +240,7 @@ genheader <- function(reglist, header) {
 # gennote: generate notlist -----------------------------------------------
 gennote <- function(note, star, digits = 3L, lang = "en_US") {
     if (is.null(note) || isFALSE(note)) return(NULL)
-    note <- if (isTRUE(note)) {
+    if (isTRUE(note)) {
         star <- adjstar(star, "text")
         note <- paste0(star$symbol, " p <", format(star$cut, digits = digits))
         note <- paste(note, collapse = ", ")
@@ -455,9 +464,16 @@ mdlist2chunk <- function(l) {
     list(chunk)
 }
 
-# outtext: output result in raw textformat ------------------------------------
-outtext <- function(body, stat, ...) {
-    dt <- rbind(body, stat)
+# outpipe: output result in pandoc pipe format ---------------------------------
+outpipe <- function(body, stat, header, caption, align, ...) {
+    args <- list(
+        x = outtext(header, body, stat),
+        format = "pipe",
+        caption = caption,
+        col.names = NA,
+        align = align 
+    )
+    do.call(knitr::kable, args)
 }
 
 # outflextable: output result in raw flextable format -------------------------
@@ -519,6 +535,20 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
         flextable::hline(i = hline, border = style$fpmin) %>%
         flextable::autofit()
     ft
+}
+
+# outtext: output result in raw textformat ------------------------------------
+outtext <- function(header, body, stat, ...) {
+    header_first_col <- rep("", length(header))
+    header %<>% lapply(function(x) {
+        x[x == data.table::shift(x)] <- ""
+        x
+    })
+    header_df <- do.call(rbind, header) %>%
+        cbind(header_first_col, .) %>%
+        data.table::as.data.table()
+    names(header_df) <- names(body)
+    dt <- rbind(header_df, body, stat)
 }
 
 # parse_c: parse numeric format -----------------------------------------------

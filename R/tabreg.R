@@ -35,6 +35,7 @@
 #' tabreg(l.reg)
 #' @export
 tabreg <- function(..., reglist = NULL, caption = NULL, outfmt = "text",
+    align = NULL,
     vari = list(name = NULL, label = NULL),
     esti = list(estimate = 3L, std.error = "(3)", statistic = NULL,
                 p.value = NULL, singlerow = FALSE,
@@ -51,6 +52,7 @@ tabreg <- function(..., reglist = NULL, caption = NULL, outfmt = "text",
     vari    <- adjvari(vari, reglist)
     star    <- adjstar(star, outfmt)
     lang    <- ifthen(outargs$lang, substr(Sys.getenv("LANG", "en_US.utf8"), 1, 5))
+    align   <- adjalign(align, length(reglist) + 1)
 
     # gen data
     body    <- genbody(esti, reglist, vari, star, outfmt)
@@ -68,6 +70,7 @@ tabreg <- function(..., reglist = NULL, caption = NULL, outfmt = "text",
                          caption = caption,
                          note    = note,
                          lang    = lang,
+                         align   = align,
                          style   = style)
         if (is.null(outfun)) outfun <- paste0("out", outfmt)
         do.call(outfun, out.args)

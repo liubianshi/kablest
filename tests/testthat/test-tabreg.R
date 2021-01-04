@@ -20,9 +20,17 @@ l.reg <- local({
 })
 test_that("outtext", {
     result <- tabreg(l.reg[[1]], reglist = l.reg[2:4])
-    expect_equal(result$term[10], "*R*^2^")
-    expect_equal(result$R2[10], "0.982")
-    expect_equal(result$R4[7], "0.024***")
+    expect_equal(result$term[13], "*R*^2^")
+    expect_equal(result$R2[13], "0.982")
+    expect_equal(result$R4[10], "0.024***")
+})
+
+test_that("pipe", {
+    result <- tabreg(l.reg[[1]], reglist = l.reg[2:4], outfmt = "pipe")
+    print(str(result))
+    #expect_equal(result$term[13], "*R*^2^")
+    #expect_equal(result$R2[13], "0.982")
+    #expect_equal(result$R4[10], "0.024***")
 })
 
 test_that("insertemptycolumn", {
