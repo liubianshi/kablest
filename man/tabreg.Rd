@@ -9,6 +9,7 @@ tabreg(
   reglist = NULL,
   caption = NULL,
   outfmt = "text",
+  align = NULL,
   vari = list(name = NULL, label = NULL),
   esti = list(estimate = 3L, std.error = "(3)", statistic = NULL, p.value = NULL,
     singlerow = FALSE, fun = NULL, fun.args = NULL),

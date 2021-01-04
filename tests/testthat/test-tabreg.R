@@ -25,12 +25,13 @@ test_that("outtext", {
     expect_equal(result$R4[10], "0.024***")
 })
 
-test_that("pipe", {
-    result <- tabreg(l.reg[[1]], reglist = l.reg[2:4], outfmt = "pipe")
-    print(str(result))
-    #expect_equal(result$term[13], "*R*^2^")
-    #expect_equal(result$R2[13], "0.982")
-    #expect_equal(result$R4[10], "0.024***")
+test_that("markdown", {
+    result <- tabreg(l.reg[[1]], reglist = l.reg[2:4],
+                     outfmt = "markdown", caption = "test markdown")
+    print(result)
+    expect_s3_class(result, "knitr_kable")
+    expect_true(grepl("^\\-+$", result[17]))
+    expect_true(grepl("^ +weight +lot1", result[4]))
 })
 
 test_that("insertemptycolumn", {

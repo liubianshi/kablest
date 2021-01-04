@@ -439,7 +439,6 @@ ifthen <- function(x, then, otherwise = x, fun = is.null) {
     if (is.null(x)) then else x 
 }
 
-
 # length_equal: whether two object's length is equal --------------------------
 length_equal <- function(x, y) {
     if (length(x) == length(y)) return(TRUE)
@@ -462,18 +461,6 @@ mdlist2chunk <- function(l) {
     if (isTRUE(l$sup)) chunk$vertical.align   <- "superscript"
     if (isTRUE(l$sub)) chunk$vertical.align   <- "subscript"
     list(chunk)
-}
-
-# outpipe: output result in pandoc pipe format ---------------------------------
-outpipe <- function(body, stat, header, caption, align, ...) {
-    args <- list(
-        x = outtext(header, body, stat),
-        format = "pipe",
-        caption = caption,
-        col.names = NA,
-        align = align 
-    )
-    do.call(knitr::kable, args)
 }
 
 # outflextable: output result in raw flextable format -------------------------
@@ -535,6 +522,31 @@ outflextable <- function(body, stat, header, star, caption, note, lang,
         flextable::hline(i = hline, border = style$fpmin) %>%
         flextable::autofit()
     ft
+}
+
+# outmarkdown: output result in pandoc pipe format ---------------------------------
+outmarkdown <- function(body, stat, header, caption, align, ...) {
+    args <- list(
+        x = outtext(header, body, stat),
+        format = "simple",
+        caption = NULL,
+        col.names = NA,
+        align = align 
+    )
+    out <- do.call(knitr::kable, args)
+    out <- if (length(header) == 1) {
+        out[c(3, 2, 4:length(out))]
+    } else {
+        out[length(out) + 1] <- paste(rep("-", nchar(out[1])), collapse = "")
+        out[-1]
+    }
+
+    if (!is.null(caption)) {
+        out <- c(paste("Table:", caption), "", out)
+    }
+    class(out) <- "knitr_kable"
+    attr(out, "format") <- "simple"
+    out
 }
 
 # outtext: output result in raw textformat ------------------------------------
