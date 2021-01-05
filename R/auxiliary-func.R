@@ -43,7 +43,7 @@ adjvari <- function(vari, reglist) {
     vari$name %<>% ifthen(vars)
     vari$label %<>% ifthen(vars)
     vari$label <- if (is.character(vari$label)) {
-        stopifnot(length_equal(vars, vari$label))
+        stopifnot(length_equal(vari$name, vari$label))
         vari$label
     } else if (is.list(vari$label)) {
         purrr::map_chr(vari$name, ~ ifthen(vari$label[[.x]], .x))
