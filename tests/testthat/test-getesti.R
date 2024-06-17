@@ -45,7 +45,8 @@ test_that("get estimate result from regslit", {
     expect_equal(com2$R1, c("-0.371 (-1.191)", " "))
 
     stardf <- getesti("p.value", genestimate(l.reg), vars) %>%
-        purrr::map_dfc(genstar, star = list(cut = 0.01, symbol = "🌟"))
+        purrr::map(genstar, star = list(cut = 0.01, symbol = "🌟")) %>%
+        as.data.fram()
     result <- dfplus_element(result, stardf, "term", sep = "")
     com <- dfplus_row(result, result2, common_col = "term")
     expect_equal(com$R2, c("4.661🌟", "(21.17)", "", ""))

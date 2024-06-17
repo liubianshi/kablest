@@ -55,11 +55,7 @@ adjvari <- function(vari, reglist) {
 
 # coef2df: translate coefficients of regression to data.frame -----------------
 coef2df <- function(reg) {
-    coef_df <- if (class(reg) == "fixest") {
-      summary(reg)$coeftable %>% as.data.frame(stringsAsFactors = FALSE)
-    } else {
-      summary(reg)$coefficients %>% as.data.frame(stringsAsFactors = FALSE)
-    }
+    coef_df <- parser(reg, "coef_df")
     coefnames <- c("estimate", "std.error", "statistic", "p.value")
     names(coef_df) <- coefnames
     coef_df$term <- rownames(coef_df)
@@ -164,9 +160,7 @@ keepbyname <- function(x, name = NULL) {
 
 # genbody: generate body data.table from estimate result ----------------------
 genbody <- function(esti, reglist, vari, star, outfmt) {
-    vari <- adjvari(vari, reglist)
     estilist <- genestimate(reglist, esti$fun, esti$fun.args)
-    str(esti)
     l.esti <- local({
         n <- names(esti)[!purrr::map_lgl(esti, is.null)]
         n <- n[n %in% c("estimate", "std.error", "statistic", "p.value")]
@@ -176,7 +170,8 @@ genbody <- function(esti, reglist, vari, star, outfmt) {
     if (!is.null(star)) {
         l.esti[[1]] <- local({
             stardf <- getesti("p.value", estilist, vari$name) %>%
-                purrr::map_dfc(genstar, star = star)
+                purrr::map(genstar, star = star) %>%
+                as.data.frame()
             estidf <- l.esti[[1]]
             for (i in seq_along(stardf)[-1])
                 estidf[[i]] <- paste0(estidf[[i]], stardf[[i]])
@@ -223,7 +218,7 @@ genestimate <- function(reglist, fun = NULL, fun.args = NULL) {
 genheader <- function(reglist, header) {
     if (is.null(header)) return(NULL)
     if ("dep" %in% header$name)
-        header$dep <- purrr::map_chr(reglist, getdepvar)
+        header$dep <- purrr::map_chr(reglist, parser, "depvar")
     if ("reg" %in% header$name)
         header$reg <- names(reglist)
     if ("no" %in% header$name)
@@ -258,35 +253,19 @@ gennote <- function(note, star, digits = 3L, lang = "en_US") {
 
 # getdepvar: get dependent variable name form reg ----------------------------
 getdepvar <- function(reg) {
-    model <- if (class(reg) == "fixest") reg$fml else reg$model
-    stopifnot(!is.null(model))
-    while (inherits(model, "call") || inherits(model, "formula")) {
-        model <- model[[2]]
-    }
-    depvar <- if (inherits(model, "data.frame")) {
-        names(reg$model)[1]
-    } else if (inherits(model, "name")) {
-        as.character(model)
-    } else {
-        stop("Can not get regression's independent variable")
-    }
-    depvar
+  parser(reg, "depvar")
 }
 
 # getindepvars: get all variable names from reglist ---------------------------
 getindepvars <- function(reg) {
-  indepvars <- if (utils::hasName(reg, "coefficients")) {
-    names(reg$coefficients)
-  } else {
-    rownames(summary(reg)$coefficients)
-  }
+  indepvars <- parser(reg, "indepvar")
   stopifnot(!is.null(indepvars))
-  indepvars
+  return(indepvars)
 }
 
 # getobsnumber: get observation number from regression model ------------------
 getobsnumber <- function(reg) {
-    ifthen(reg$N, length(reg$residuals))
+  parser(reg, "nobs")
 }
 
 # genstat: gen stats from estimate result -------------------------------------
@@ -298,7 +277,7 @@ genstat <- function(stat, reglist, digits, lang = "en_US") {
         NULL
     } else {
         stat$name %<>% ifthen(c("N", "r2"))
-        stat$label %<>% ifthen(stat$name) %>% translate(lang)
+        stat$label <- ifthen(stat$label, stat$name) %>% translate(lang)
         stopifnot(length_equal(stat$name, stat$label))
         local({
             l <- lapply(stat$name, getstat_byname, reglist, digits)
@@ -307,7 +286,6 @@ genstat <- function(stat, reglist, digits, lang = "en_US") {
             data.table::setcolorder(d, "term")
         })
     }
- 
     if (length(stat.add) != 0) {
         add2str <- function(x, len = 0L) {
             if (is.numeric(x))
@@ -334,15 +312,11 @@ genstat <- function(stat, reglist, digits, lang = "en_US") {
 # getstat_byname: get specific stats form regression --------------------------
 getstat_byname <- function(statname, reglist, digits) {
     if (grepl("^N|obs$", statname)) statname <- "nobs"
-    if (grepl("^r2|R2$", statname)) statname <- "r.squared"
-    if (grepl("^ar2|AR2$", statname)) statname <- "adj.r.squared"
+    if (grepl("^r2|R2$", statname)) statname <- "r2"
+    if (grepl("^ar2|AR2$", statname)) statname <- "ar2"
     stopifnot(length(reglist) > 0)
+    stat <- purrr::map(reglist, parser, statname) %>% unlist()
 
-    if (statname == "nobs") {
-        stat <- purrr::map_int(reglist, ~ ifthen(getobsnumber(.x), NA))
-    } else {
-        stat <- purrr::map_dbl(reglist, ~ ifthen(summary(.x)[[statname]], NA))
-    }
     if (is.null(stat)) return(rep("", length(reglist)))
     stat <- strformat(stat, digits = digits, na.replace = "")
 }
@@ -735,28 +709,29 @@ supported_md_syntax <- function() {
 # translate: translate specific key words -------------------------------------
 translate <- function(x, lang = "en_US") {
     if (lang %in% c("zh_cn", "zh_CN", "ZH_cn", "ZH_CN")) {
-        x <- gsub("^Note: $",    "注释：",     x)
-        x <- gsub("^term|vari|variable$",    "变量",     x)
-        x <- gsub("^N|obs|nobs$",            "观测数",   x)
-        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",     x)
-        x <- gsub("^ar2|AR2|adj.r.squared$", "调整*R*^2^", x)
+        x <- gsub("^Note: $",                   "注释：",     x)
+        x <- gsub("^term|vari|variable$",       "变量",       x)
+        x <- gsub("^N|obs|nobs$",               "观测数",     x)
+        x <- gsub("^r2|R2|r.squared$",          "*R*^2^",     x)
+        x <- gsub("^ar2|AR2|adj.r.squared$",    "调整 *R*^2^", x)
+        x <- gsub("^pr2|PR2|pseudo.r.squared$", "拟 *R*^2^", x)
     } else if (lang %in% c("en_US", "en_us")) {
-        x <- gsub("^term|vari|variable$",    "Variable", x)
-        x <- gsub("^N|obs|nobs$",            "N",        x)
-        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",     x)
-        x <- gsub("^ar2|AR2|adj.r.squared$", "Adj *R*^2^", x)
+        x <- gsub("^term|vari|variable$",    "Variable",      x)
+        x <- gsub("^N|obs|nobs$",            "N",             x)
+        x <- gsub("^r2|R2|r.squared$",       "*R*^2^",        x)
+        x <- gsub("^ar2|AR2|adj.r.squared$", "Adj *R*^2^",    x)
+        x <- gsub("^ar2|AR2|adj.r.squared$", "Pseudo *R*^2^", x)
     }
     x
 }
-
 # strformat: format numeric vector --------------------------------------------
 strformat <- function(x, digits = 3L, nsmall = 3L, width = NULL,
                       big.mark = ",", na.replace = "") {
-    stopifnot(is.numeric(x))
+    stopifnot(is.numeric(x) || all(is.na(x)))
     if (is.integer(x)) return(as.character(x))
     one <- function(z, nsmall, width, digits, na.replace, big.mark) {
+        if (all(is.na(z))) return(na.replace)
         stopifnot(is.numeric(z) && length(z) == 1L)
-        if (is.na(z)) return(na.replace)
         if (is.integer(z)) return(format(z, width = width, big.mark = big.mark))
         t <- abs(z)
         n <- if (t == 0) {
