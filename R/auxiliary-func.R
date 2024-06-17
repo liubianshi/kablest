@@ -26,7 +26,7 @@ adjstar <- function(star, outfmt = "text") {
 
     if (outfmt %in% c("flextable", "docx", "word")) {
         starsymbol <- paste0("^", starsymbol, "^")
-    } else if (outfmt %in% c("html", "pdf", "kable")) {
+    } else if (outfmt %in% c("html", "pdf", "kable", "markdown")) {
         starsymbol <- escape(starsymbol, chars = "*^_`~")
         starsymbol <- paste0("^", starsymbol, "^")
     }
@@ -55,11 +55,14 @@ adjvari <- function(vari, reglist) {
 
 # coef2df: translate coefficients of regression to data.frame -----------------
 coef2df <- function(reg) {
-    reg_coef <- summary(reg)$coefficients
-    coef_df <- as.data.frame(reg_coef, stringsAsFactors = FALSE)
+    coef_df <- if (class(reg) == "fixest") {
+      summary(reg)$coeftable %>% as.data.frame(stringsAsFactors = FALSE)
+    } else {
+      summary(reg)$coefficients %>% as.data.frame(stringsAsFactors = FALSE)
+    }
     coefnames <- c("estimate", "std.error", "statistic", "p.value")
     names(coef_df) <- coefnames
-    coef_df$term <- row.names(reg_coef)
+    coef_df$term <- rownames(coef_df)
     coef_df[c("term", coefnames)]
 }
 
@@ -163,7 +166,7 @@ keepbyname <- function(x, name = NULL) {
 genbody <- function(esti, reglist, vari, star, outfmt) {
     vari <- adjvari(vari, reglist)
     estilist <- genestimate(reglist, esti$fun, esti$fun.args)
-
+    str(esti)
     l.esti <- local({
         n <- names(esti)[!purrr::map_lgl(esti, is.null)]
         n <- n[n %in% c("estimate", "std.error", "statistic", "p.value")]
@@ -255,7 +258,7 @@ gennote <- function(note, star, digits = 3L, lang = "en_US") {
 
 # getdepvar: get dependent variable name form reg ----------------------------
 getdepvar <- function(reg) {
-    model <- reg$model
+    model <- if (class(reg) == "fixest") reg$fml else reg$model
     stopifnot(!is.null(model))
     while (inherits(model, "call") || inherits(model, "formula")) {
         model <- model[[2]]
@@ -270,12 +273,15 @@ getdepvar <- function(reg) {
     depvar
 }
 
-
 # getindepvars: get all variable names from reglist ---------------------------
 getindepvars <- function(reg) {
-    depvars <- rownames(summary(reg)$coefficients)
-    stopifnot(!is.null(depvars))
-    depvars
+  indepvars <- if (utils::hasName(reg, "coefficients")) {
+    names(reg$coefficients)
+  } else {
+    rownames(summary(reg)$coefficients)
+  }
+  stopifnot(!is.null(indepvars))
+  indepvars
 }
 
 # getobsnumber: get observation number from regression model ------------------
@@ -751,24 +757,22 @@ strformat <- function(x, digits = 3L, nsmall = 3L, width = NULL,
     one <- function(z, nsmall, width, digits, na.replace, big.mark) {
         stopifnot(is.numeric(z) && length(z) == 1L)
         if (is.na(z)) return(na.replace)
-        if (is.integer(z)) return(format(z, digits = 0, nsmall = 0,
-                                         width = width, big.mark = big.mark))
+        if (is.integer(z)) return(format(z, width = width, big.mark = big.mark))
         t <- abs(z)
         n <- if (t == 0) {
-                format(z, digits = 0, nsmall = nsmall, width = width, big.mark = big.mark)
+                format(z, nsmall = nsmall, width = width, big.mark = big.mark)
             } else if (t < 1) {
                 format(z, nsmall = nsmall, width = width,
-                       digits = max(0, digits - as.integer(log10(1/t))),
+                       digits = max(1, digits - as.integer(log10(1/t))),
                        , big.mark = big.mark)
             } else if (t < 10) {
                 format(z, nsmall = nsmall, width = width, digits = digits,
                        big.mark = big.mark )
             } else if (log10(t) < digits + 1) {
-                format(z, digits = digits - as.integer(log10(t)),
-                       nsmall = max(0, nsmall - as.integer(log10(t))),
+                format(z, nsmall = max(0, nsmall - as.integer(log10(t))),
                        width = width, big.mark = big.mark)
             } else {
-                format(z, digits = 0, width = width, big.mark = big.mark)
+                format(z, nsmall = 0, width = width, big.mark = big.mark)
             }
     }
     as.character(lapply(x, one, nsmall, width, digits, na.replace, big.mark))
