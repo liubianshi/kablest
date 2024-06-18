@@ -725,30 +725,29 @@ translate <- function(x, lang = "en_US") {
     x
 }
 # strformat: format numeric vector --------------------------------------------
-strformat <- function(x, digits = 3L, nsmall = 3L, width = NULL,
+strformat <- function(x, digits = 3L, width = 6L,
                       big.mark = ",", na.replace = "") {
-    stopifnot(is.numeric(x) || all(is.na(x)))
-    if (is.integer(x)) return(as.character(x))
-    one <- function(z, nsmall, width, digits, na.replace, big.mark) {
-        if (all(is.na(z))) return(na.replace)
-        stopifnot(is.numeric(z) && length(z) == 1L)
-        if (is.integer(z)) return(format(z, width = width, big.mark = big.mark))
-        t <- abs(z)
-        n <- if (t == 0) {
-                format(z, nsmall = nsmall, width = width, big.mark = big.mark)
-            } else if (t < 1) {
-                format(z, nsmall = nsmall, width = width,
-                       digits = max(1, digits - as.integer(log10(1/t))),
-                       , big.mark = big.mark)
-            } else if (t < 10) {
-                format(z, nsmall = nsmall, width = width, digits = digits,
-                       big.mark = big.mark )
-            } else if (log10(t) < digits + 1) {
-                format(z, nsmall = max(0, nsmall - as.integer(log10(t))),
-                       width = width, big.mark = big.mark)
-            } else {
-                format(z, nsmall = 0, width = width, big.mark = big.mark)
-            }
+  stopifnot(is.numeric(x) || all(is.na(x)))
+  if (is.integer(x)) return(as.character(x))
+  one <- function(z, width, digits, na.replace, big.mark) {
+    if (all(is.na(z))) return(na.replace)
+    stopifnot(is.numeric(z) && length(z) == 1L)
+
+    if (!grepl("\\.", z) && z != 0) {
+      return(format(z, width = width, big.mark = big.mark))
     }
-    as.character(lapply(x, one, nsmall, width, digits, na.replace, big.mark))
+    
+    if (z == 0) {
+      return(format(0, width = width, nsmall = digits))
+    }
+
+    t <- abs(z)
+    if (digits == 1 || as.integer(log10(t)) + 1 >= digits) {
+      return(format(z, width = width, nsmall = 1, digits = 1, big.mark = big.mark))
+    } 
+
+    gettextf("%%%d.%df", width, digits - max(0, as.integer(log10(t)))) %>%
+    gettextf(z)
+  }
+  as.character(lapply(x, one, width, digits, na.replace, big.mark))
 }
